@@ -1,0 +1,54 @@
+spring:
+  application:
+    name: rag-resume
+  threads:
+    virtual:
+      enabled: true
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      username: ${REDIS_USER:default}
+      password: ${REDIS_PASSWORD:redis}
+      lettuce:
+        pool:
+          max-active: 10
+          min-idle: 2
+  liquibase:
+    change-log: classpath:db/changelog/db.changelog-master.yaml
+  datasource:
+    url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:postgres}
+    username: ${DB_USERNAME:postgres}
+    password: ${DB_PASSWORD:postgres}
+    hikari:
+      maximum-pool-size: 10     # must equal app.protection.database.max-concurrent-calls
+      minimum-idle: 2
+      connection-timeout: 2000
+      idle-timeout: 300000
+  ai:
+    google:
+      genai:
+        api-key: ${GOOGLE_AI_API_KEY}
+        chat:
+          options:
+            model: gemini-2.5-flash
+    vectorstore:
+      pgvector:
+        initialize-schema: false
+        dimensions: 384
+        distance-type: COSINE_DISTANCE
+        index-type: HNSW
+
+app:
+  allowed-origins:
+    - ${ALLOWED_ORIGIN:http://localhost:8080}
+  cache:
+    answer-ttl: 1h
+  protection:
+    ai:
+      limit-for-period: 1
+      limit-refresh-period: 3s
+      timeout-duration: 0s
+    database:
+      max-concurrent-calls: 10  # must equal spring.datasource.hikari.maximum-pool-size
+      max-wait-duration: 0ms
