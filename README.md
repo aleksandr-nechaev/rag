@@ -21,11 +21,12 @@ A RAG (Retrieval-Augmented Generation) application that answers questions about 
 ## Requirements
 
 - Java 25
-- PostgreSQL with pgvector extension
-- Redis
+- Docker (для запуска PostgreSQL + Redis)
 
-```sql
-CREATE DATABASE nechaev;
+Start infrastructure:
+
+```bash
+docker compose up -d
 ```
 
 ## Environment Variables
