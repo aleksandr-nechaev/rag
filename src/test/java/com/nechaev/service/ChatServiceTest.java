@@ -1,5 +1,6 @@
 package com.nechaev.service;
 
+import com.nechaev.config.AppProperties;
 import com.nechaev.dto.AnswerResponse;
 import com.nechaev.dto.QuestionRequest;
 import com.nechaev.mapper.ChatMapper;
@@ -40,6 +41,7 @@ class ChatServiceTest {
     @Mock Bulkhead databaseBulkhead;
     @Mock RateLimiter aiRateLimiter;
     @Mock ChatMapper chatMapper;
+    @Mock AppProperties appProperties;
 
     ChatService chatService;
 
@@ -48,8 +50,10 @@ class ChatServiceTest {
 
     @BeforeEach
     void setUp() {
+        AppProperties.Rag rag = new AppProperties.Rag(3);
+        when(appProperties.rag()).thenReturn(rag);
         chatService = new ChatService(chatClientBuilder, vectorStore, databaseBulkhead,
-                aiRateLimiter, chatMapper);
+                aiRateLimiter, chatMapper, appProperties);
         when(chatMapper.toQuestion(REQUEST)).thenReturn(QUESTION);
     }
 

@@ -33,7 +33,7 @@ class RestApiChatControllerTest {
     void askValidRequestReturns200WithAnswer() throws Exception {
         when(chatService.answer(any())).thenReturn(new AnswerResponse("Aleksandr has 5 years of Java experience."));
 
-        mockMvc.perform(post("/api/ask")
+        mockMvc.perform(post("/api/v1/ask")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {"question": "What is your Java experience?"}
@@ -44,7 +44,7 @@ class RestApiChatControllerTest {
 
     @Test
     void askBlankQuestionReturns400() throws Exception {
-        mockMvc.perform(post("/api/ask")
+        mockMvc.perform(post("/api/v1/ask")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {"question": ""}
@@ -54,7 +54,7 @@ class RestApiChatControllerTest {
 
     @Test
     void askMissingQuestionReturns400() throws Exception {
-        mockMvc.perform(post("/api/ask")
+        mockMvc.perform(post("/api/v1/ask")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{}"))
                 .andExpect(status().isBadRequest());
@@ -67,7 +67,7 @@ class RestApiChatControllerTest {
         when(chatService.answer(any()))
                 .thenThrow(BulkheadFullException.createBulkheadFullException(bulkhead));
 
-        mockMvc.perform(post("/api/ask")
+        mockMvc.perform(post("/api/v1/ask")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {"question": "What is your experience?"}
@@ -83,7 +83,7 @@ class RestApiChatControllerTest {
         when(chatService.answer(any()))
                 .thenThrow(RequestNotPermitted.createRequestNotPermitted(rateLimiter));
 
-        mockMvc.perform(post("/api/ask")
+        mockMvc.perform(post("/api/v1/ask")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {"question": "What is your experience?"}

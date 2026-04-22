@@ -1,5 +1,6 @@
 package com.nechaev.service;
 
+import com.nechaev.config.AppProperties;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -31,11 +32,15 @@ class ResumeIngestionServiceTest {
     ResumeIngestionService service;
     String realPdfHash;
 
+    static final String RESUME_PATH = "static/Aleksandr Nechaev resume.pdf";
+
     @BeforeEach
     void setUp() throws Exception {
-        service = new ResumeIngestionService(vectorStore, jdbcTemplate);
+        AppProperties.Ingestion ingestion = new AppProperties.Ingestion(RESUME_PATH);
+        AppProperties appProperties = new AppProperties(null, null, null, ingestion, null);
+        service = new ResumeIngestionService(vectorStore, jdbcTemplate, appProperties);
 
-        try (InputStream is = new ClassPathResource("static/Aleksandr Nechaev resume.pdf").getInputStream()) {
+        try (InputStream is = new ClassPathResource(RESUME_PATH).getInputStream()) {
             byte[] bytes = is.readAllBytes();
             byte[] digest = MessageDigest.getInstance("SHA-256").digest(bytes);
             realPdfHash = HexFormat.of().formatHex(digest);
