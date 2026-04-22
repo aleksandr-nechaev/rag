@@ -21,8 +21,8 @@ spring:
     username: ${DB_USERNAME:postgres}
     password: ${DB_PASSWORD:postgres}
     hikari:
-      maximum-pool-size: 10     # must equal app.protection.database.max-concurrent-calls
-      minimum-idle: 2
+      maximum-pool-size: 5      # must equal app.protection.database.max-concurrent-calls
+      minimum-idle: 1
       connection-timeout: 2000
       idle-timeout: 300000
   ai:
@@ -44,11 +44,15 @@ app:
     - ${ALLOWED_ORIGIN:http://localhost:8080}
   cache:
     answer-ttl: 1h
+  ingestion:
+    resume-path: static/Aleksandr Nechaev resume.pdf
+  rag:
+    top-k: 3
   protection:
     ai:
       limit-for-period: 15
       limit-refresh-period: 1m
       timeout-duration: 0s
     database:
-      max-concurrent-calls: 10  # must equal spring.datasource.hikari.maximum-pool-size
+      max-concurrent-calls: 5   # must equal spring.datasource.hikari.maximum-pool-size
       max-wait-duration: 0ms

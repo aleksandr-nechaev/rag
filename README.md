@@ -5,7 +5,7 @@ A RAG (Retrieval-Augmented Generation) application that answers questions about 
 ## How It Works
 
 1. On startup, the resume PDF is split into sections, embedded locally (all-MiniLM-L6-v2 via ONNX), and stored in pgvector. Re-ingestion only happens when the PDF changes (SHA-256 hash check), protected by a PostgreSQL advisory lock for multi-instance safety.
-2. A question arrives via REST or WebSocket → top-3 relevant resume sections are retrieved via cosine similarity search → sent to Gemini with a system prompt → answer is cached in Redis for 1 hour.
+2. A question arrives via REST or WebSocket → top relevant resume sections are retrieved via cosine similarity search (configurable, default 3) → sent to Gemini with a system prompt → answer is cached in Redis for 1 hour.
 3. If Gemini is unavailable or rate-limited, raw resume sections are returned as a fallback and also cached.
 
 ## Stack
@@ -14,7 +14,7 @@ A RAG (Retrieval-Augmented Generation) application that answers questions about 
 - Spring AI 2.0.0-M4: Google GenAI (Gemini), pgvector, local ONNX embeddings
 - PostgreSQL with pgvector extension
 - Redis (answer cache, TTL 1h)
-- Resilience4j: rate limiter (1 req/3s to AI) + bulkhead (10 concurrent DB calls)
+- Resilience4j: rate limiter (15 req/m to AI) + bulkhead (5 concurrent DB calls)
 - MapStruct for DTO ↔ domain model mapping
 - Liquibase for schema management
 

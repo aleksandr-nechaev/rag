@@ -1,5 +1,6 @@
 package com.nechaev.service;
 
+import com.nechaev.config.AppProperties;
 import com.nechaev.dto.AnswerResponse;
 import com.nechaev.dto.QuestionRequest;
 import com.nechaev.mapper.ChatMapper;
@@ -37,17 +38,20 @@ public class ChatService {
     private final Bulkhead databaseBulkhead;
     private final RateLimiter aiRateLimiter;
     private final ChatMapper chatMapper;
+    private final int topK;
 
     public ChatService(ChatClient.Builder chatClientBuilder,
                        VectorStore vectorStore,
                        Bulkhead databaseBulkhead,
                        RateLimiter aiRateLimiter,
-                       ChatMapper chatMapper) {
+                       ChatMapper chatMapper,
+                       AppProperties appProperties) {
         this.chatClient = chatClientBuilder.build();
         this.vectorStore = vectorStore;
         this.databaseBulkhead = databaseBulkhead;
         this.aiRateLimiter = aiRateLimiter;
         this.chatMapper = chatMapper;
+        this.topK = appProperties.rag().topK();
     }
 
     @Cacheable(value = "answers", keyGenerator = "questionKeyGenerator")
@@ -62,7 +66,7 @@ public class ChatService {
         }
         try {
             List<Document> relevant = vectorStore.similaritySearch(
-                    SearchRequest.builder().query(question.text()).topK(3).build());
+                    SearchRequest.builder().query(question.text()).topK(topK).build());
 
             Answer answer;
             if (!aiRateLimiter.acquirePermission()) {

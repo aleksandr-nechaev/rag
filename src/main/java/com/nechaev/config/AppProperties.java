@@ -6,7 +6,7 @@ import java.time.Duration;
 import java.util.List;
 
 @ConfigurationProperties(prefix = "app")
-public record AppProperties(Cache cache, Protection protection, List<String> allowedOrigins) {
+public record AppProperties(Cache cache, Protection protection, List<String> allowedOrigins, Ingestion ingestion, Rag rag) {
 
     public record Cache(Duration answerTtl) {}
 
@@ -16,4 +16,8 @@ public record AppProperties(Cache cache, Protection protection, List<String> all
 
     // max-concurrent-calls must equal spring.datasource.hikari.maximum-pool-size
     public record Database(int maxConcurrentCalls, Duration maxWaitDuration) {}
+
+    public record Ingestion(String resumePath) {}
+
+    public record Rag(int topK) {}
 }

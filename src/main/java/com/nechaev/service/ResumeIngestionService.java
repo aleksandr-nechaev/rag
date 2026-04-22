@@ -1,5 +1,6 @@
 package com.nechaev.service;
 
+import com.nechaev.config.AppProperties;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.ai.document.Document;
@@ -27,7 +28,6 @@ public class ResumeIngestionService implements CommandLineRunner {
 
     private static final Logger log = LoggerFactory.getLogger(ResumeIngestionService.class);
 
-    private static final String RESUME_PATH = "static/Aleksandr Nechaev resume.pdf";
     private static final String SOURCE = "resume";
     // Arbitrary fixed ID for pg_try_advisory_lock — unique per application concern.
     private static final long ADVISORY_LOCK_ID = 7_654_321L;
@@ -39,10 +39,12 @@ public class ResumeIngestionService implements CommandLineRunner {
 
     private final VectorStore vectorStore;
     private final JdbcTemplate jdbcTemplate;
+    private final String resumePath;
 
-    public ResumeIngestionService(VectorStore vectorStore, JdbcTemplate jdbcTemplate) {
+    public ResumeIngestionService(VectorStore vectorStore, JdbcTemplate jdbcTemplate, AppProperties appProperties) {
         this.vectorStore = vectorStore;
         this.jdbcTemplate = jdbcTemplate;
+        this.resumePath = appProperties.ingestion().resumePath();
     }
 
     @Override
@@ -106,7 +108,7 @@ public class ResumeIngestionService implements CommandLineRunner {
     }
 
     private byte[] readPdfBytes() {
-        try (InputStream is = new ClassPathResource(RESUME_PATH).getInputStream()) {
+        try (InputStream is = new ClassPathResource(resumePath).getInputStream()) {
             return is.readAllBytes();
         } catch (Exception e) {
             throw new IllegalStateException("Cannot read resume PDF", e);
