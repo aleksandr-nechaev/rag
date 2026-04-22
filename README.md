@@ -64,7 +64,7 @@ Open [http://localhost:8080](http://localhost:8080) — built-in chat interface 
 ### REST
 
 ```bash
-curl -X POST http://localhost:8080/api/ask \
+curl -X POST http://localhost:8080/api/v1/ask \
   -H "Content-Type: application/json" \
   -d '{"question": "What is Aleksandr'\''s experience with Java?"}'
 ```
