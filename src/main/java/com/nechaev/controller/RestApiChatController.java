@@ -11,7 +11,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 // Intentionally separate from WebSocketChatController — different transport (HTTP vs WebSocket/STOMP).
 @RestController
-@RequestMapping("/api")
+@RequestMapping("/api/v1")
 public class RestApiChatController {
 
     private final ChatService chatService;
