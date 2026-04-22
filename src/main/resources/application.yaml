@@ -31,7 +31,7 @@ spring:
         api-key: ${GOOGLE_AI_API_KEY}
         chat:
           options:
-            model: gemini-2.5-flash
+            model: gemini-2.5-flash-lite
     vectorstore:
       pgvector:
         initialize-schema: false
@@ -46,8 +46,8 @@ app:
     answer-ttl: 1h
   protection:
     ai:
-      limit-for-period: 1
-      limit-refresh-period: 3s
+      limit-for-period: 15
+      limit-refresh-period: 1m
       timeout-duration: 0s
     database:
       max-concurrent-calls: 10  # must equal spring.datasource.hikari.maximum-pool-size
