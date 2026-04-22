@@ -21,7 +21,7 @@ A RAG (Retrieval-Augmented Generation) application that answers questions about 
 ## Requirements
 
 - Java 25
-- Docker (для запуска PostgreSQL + Redis)
+- Docker (to launch PostgreSQL + Redis)
 
 Start infrastructure:
 

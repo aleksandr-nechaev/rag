@@ -5,7 +5,8 @@ import com.nechaev.dto.QuestionRequest;
 import com.nechaev.service.ChatService;
 import jakarta.validation.Valid;
 import org.springframework.messaging.handler.annotation.MessageMapping;
-import org.springframework.messaging.handler.annotation.SendTo;
+import org.springframework.messaging.simp.SimpMessageHeaderAccessor;
+import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Controller;
 
 // Intentionally separate from RestApiChatController — different transport (WebSocket/STOMP vs HTTP).
@@ -13,18 +14,25 @@ import org.springframework.stereotype.Controller;
 public class WebSocketChatController {
 
     private final ChatService chatService;
+    private final SimpMessagingTemplate messagingTemplate;
 
-    public WebSocketChatController(ChatService chatService) {
+    public WebSocketChatController(ChatService chatService, SimpMessagingTemplate messagingTemplate) {
         this.chatService = chatService;
+        this.messagingTemplate = messagingTemplate;
     }
 
     @MessageMapping("/ask")
-    @SendTo("/topic/answers")
-    public AnswerResponse ask(@Valid QuestionRequest request) {
+    public void ask(@Valid QuestionRequest request, SimpMessageHeaderAccessor headerAccessor) {
         // @Valid over STOMP may be silently skipped — guard explicitly.
         if (request.question() == null || request.question().isBlank()) {
             throw new IllegalArgumentException("Question must not be blank");
         }
-        return chatService.answer(request);
+        String sessionId = headerAccessor.getSessionId();
+        AnswerResponse response = chatService.answer(request);
+
+        SimpMessageHeaderAccessor replyAccessor = SimpMessageHeaderAccessor.create();
+        replyAccessor.setSessionId(sessionId);
+        replyAccessor.setLeaveMutable(true);
+        messagingTemplate.convertAndSendToUser(sessionId, "/queue/answers", response, replyAccessor.getMessageHeaders());
     }
 }
