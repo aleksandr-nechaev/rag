@@ -4,7 +4,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.ai.vectorstore.VectorStore;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.testcontainers.service.connection.ServiceConnection;
-import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.cache.CacheManager;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.testcontainers.containers.PostgreSQLContainer;
 import org.testcontainers.junit.jupiter.Container;
@@ -23,7 +23,7 @@ class NechaevApplicationTests {
     VectorStore vectorStore;
 
     @MockitoBean
-    StringRedisTemplate stringRedisTemplate;
+    CacheManager cacheManager;
 
     @Test
     void contextLoads() {

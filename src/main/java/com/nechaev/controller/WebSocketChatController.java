@@ -23,10 +23,6 @@ public class WebSocketChatController {
 
     @MessageMapping("/ask")
     public void ask(@Valid QuestionRequest request, SimpMessageHeaderAccessor headerAccessor) {
-        // @Valid over STOMP may be silently skipped — guard explicitly.
-        if (request.question() == null || request.question().isBlank()) {
-            throw new IllegalArgumentException("Question must not be blank");
-        }
         String sessionId = headerAccessor.getSessionId();
         AnswerResponse response = chatService.answer(request);
 

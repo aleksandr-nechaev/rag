@@ -21,18 +21,13 @@ import org.springframework.ai.document.Document;
 import org.springframework.ai.vectorstore.VectorStore;
 
 import java.util.List;
-import java.util.Optional;
 import java.util.function.Consumer;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
-import static org.mockito.ArgumentMatchers.argThat;
-import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -44,7 +39,6 @@ class ChatServiceTest {
     @Mock VectorStore vectorStore;
     @Mock Bulkhead databaseBulkhead;
     @Mock RateLimiter aiRateLimiter;
-    @Mock AnswerCacheService answerCache;
     @Mock ChatMapper chatMapper;
 
     ChatService chatService;
@@ -55,26 +49,12 @@ class ChatServiceTest {
     @BeforeEach
     void setUp() {
         chatService = new ChatService(chatClientBuilder, vectorStore, databaseBulkhead,
-                aiRateLimiter, answerCache, chatMapper);
+                aiRateLimiter, chatMapper);
         when(chatMapper.toQuestion(REQUEST)).thenReturn(QUESTION);
     }
 
     @Test
-    void answerCacheHitReturnsImmediatelyWithoutDbOrAiCall() {
-        Answer cached = new Answer("cached answer");
-        AnswerResponse expected = new AnswerResponse("cached answer");
-        when(answerCache.find(QUESTION)).thenReturn(Optional.of(cached));
-        when(chatMapper.toResponse(cached)).thenReturn(expected);
-
-        AnswerResponse result = chatService.answer(REQUEST);
-
-        assertThat(result).isEqualTo(expected);
-        verifyNoInteractions(vectorStore, databaseBulkhead, aiRateLimiter);
-    }
-
-    @Test
     void answerBulkheadFullThrowsBulkheadFullException() {
-        when(answerCache.find(QUESTION)).thenReturn(Optional.empty());
         when(databaseBulkhead.tryAcquirePermission()).thenReturn(false);
         when(databaseBulkhead.getBulkheadConfig()).thenReturn(BulkheadConfig.ofDefaults());
 
@@ -85,7 +65,6 @@ class ChatServiceTest {
     @Test
     void answerRateLimitReachedReturnsRawFallback() {
         Document doc = new Document("SKILLS\nJava, Spring Boot");
-        when(answerCache.find(QUESTION)).thenReturn(Optional.empty());
         when(databaseBulkhead.tryAcquirePermission()).thenReturn(true);
         when(vectorStore.similaritySearch(any(org.springframework.ai.vectorstore.SearchRequest.class))).thenReturn(List.of(doc));
         when(aiRateLimiter.acquirePermission()).thenReturn(false);
@@ -96,13 +75,11 @@ class ChatServiceTest {
 
         assertThat(result.answer()).contains("AI is currently unavailable");
         assertThat(result.answer()).contains("SKILLS");
-        verify(answerCache).store(eq(QUESTION), any());
         verify(databaseBulkhead).onComplete();
     }
 
     @Test
-    void answerAiCallSucceedsReturnsAiAnswerAndCachesIt() {
-        when(answerCache.find(QUESTION)).thenReturn(Optional.empty());
+    void answerAiCallSucceedsReturnsAiAnswer() {
         when(databaseBulkhead.tryAcquirePermission()).thenReturn(true);
         when(vectorStore.similaritySearch(any(org.springframework.ai.vectorstore.SearchRequest.class))).thenReturn(List.of(new Document("context")));
         when(aiRateLimiter.acquirePermission()).thenReturn(true);
@@ -112,19 +89,15 @@ class ChatServiceTest {
                 .call().content())
                 .thenReturn("Aleksandr has 5 years of Java experience.");
         AnswerResponse expected = new AnswerResponse("Aleksandr has 5 years of Java experience.");
-        when(chatMapper.toResponse(argThat(a -> a.text().equals("Aleksandr has 5 years of Java experience."))))
-                .thenReturn(expected);
+        when(chatMapper.toResponse(any())).thenReturn(expected);
 
         AnswerResponse result = chatService.answer(REQUEST);
 
         assertThat(result).isEqualTo(expected);
-        verify(answerCache).store(eq(QUESTION),
-                argThat(a -> a.text().equals("Aleksandr has 5 years of Java experience.")));
     }
 
     @Test
-    void answerAiCallFailsReturnsRawFallbackAndCachesIt() {
-        when(answerCache.find(QUESTION)).thenReturn(Optional.empty());
+    void answerAiCallFailsReturnsRawFallback() {
         when(databaseBulkhead.tryAcquirePermission()).thenReturn(true);
         when(vectorStore.similaritySearch(any(org.springframework.ai.vectorstore.SearchRequest.class))).thenReturn(List.of(new Document("context")));
         when(aiRateLimiter.acquirePermission()).thenReturn(true);
@@ -139,13 +112,11 @@ class ChatServiceTest {
         AnswerResponse result = chatService.answer(REQUEST);
 
         assertThat(result.answer()).contains("AI is currently unavailable");
-        verify(answerCache).store(eq(QUESTION), any());
         verify(databaseBulkhead).onComplete();
     }
 
     @Test
     void answerNoRelevantDocsFallbackMentionsNoInfoFound() {
-        when(answerCache.find(QUESTION)).thenReturn(Optional.empty());
         when(databaseBulkhead.tryAcquirePermission()).thenReturn(true);
         when(vectorStore.similaritySearch(any(org.springframework.ai.vectorstore.SearchRequest.class))).thenReturn(List.of());
         when(aiRateLimiter.acquirePermission()).thenReturn(false);
@@ -160,7 +131,6 @@ class ChatServiceTest {
 
     @Test
     void answerBulkheadPermissionAlwaysReleasedEvenOnException() {
-        when(answerCache.find(QUESTION)).thenReturn(Optional.empty());
         when(databaseBulkhead.tryAcquirePermission()).thenReturn(true);
         when(vectorStore.similaritySearch(any(org.springframework.ai.vectorstore.SearchRequest.class)))
                 .thenThrow(new RuntimeException("DB error"));

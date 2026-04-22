@@ -1,4 +1,4 @@
-package com.nechaev.controller;
+package com.nechaev.exception;
 
 import com.nechaev.dto.ErrorResponse;
 import io.github.resilience4j.bulkhead.BulkheadFullException;
