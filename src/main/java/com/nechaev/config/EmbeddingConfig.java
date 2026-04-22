@@ -9,7 +9,9 @@ public class EmbeddingConfig {
 
     @Bean
     public TransformersEmbeddingModel embeddingModel() {
-        // Uses all-MiniLM-L6-v2 (384 dimensions), downloaded on first run
-        return new TransformersEmbeddingModel();
+        TransformersEmbeddingModel model = new TransformersEmbeddingModel();
+        model.setModelResource("sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2");
+        model.setTokenizerResource("sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2");
+        return model;
     }
 }
