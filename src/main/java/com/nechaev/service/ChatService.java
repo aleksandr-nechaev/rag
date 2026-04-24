@@ -1,5 +1,9 @@
 package com.nechaev.service;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.nechaev.config.AppProperties;
 import com.nechaev.dto.AnswerResponse;
 import com.nechaev.dto.QuestionRequest;
@@ -12,12 +16,18 @@ import io.github.resilience4j.ratelimiter.RateLimiter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.ai.chat.client.ChatClient;
+import org.springframework.ai.chat.messages.AssistantMessage;
+import org.springframework.ai.chat.messages.Message;
+import org.springframework.ai.chat.messages.UserMessage;
 import org.springframework.ai.document.Document;
 import org.springframework.ai.vectorstore.SearchRequest;
 import org.springframework.ai.vectorstore.VectorStore;
 import org.springframework.cache.annotation.Cacheable;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 
+import java.time.Duration;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -25,6 +35,14 @@ import java.util.stream.Collectors;
 public class ChatService {
 
     private static final Logger log = LoggerFactory.getLogger(ChatService.class);
+    private static final String SESSION_KEY_PREFIX = "session:";
+    private static final int MAX_MESSAGE_CONTENT_LENGTH = 2000;
+    private static final String AI_EMPTY_RESPONSE = "No response from AI.";
+    private static final String AI_UNAVAILABLE_NO_CONTEXT =
+            "AI is currently unavailable and no relevant information was found in the resume.";
+    private static final String AI_UNAVAILABLE_WITH_CONTEXT =
+            "AI is currently unavailable. Here is the relevant information from the resume:\n\n";
+    private static final TypeReference<List<MessageDto>> MESSAGE_LIST_TYPE = new TypeReference<>() {};
 
     private static final String SYSTEM_PROMPT = """
             You are a helpful assistant that answers questions about Aleksandr Nechaev \
@@ -35,73 +53,171 @@ public class ChatService {
 
     private final ChatClient chatClient;
     private final VectorStore vectorStore;
-    private final Bulkhead databaseBulkhead;
+    private final Bulkhead ragPipelineBulkhead;
     private final RateLimiter aiRateLimiter;
     private final ChatMapper chatMapper;
+    private final StringRedisTemplate redisTemplate;
+    private final ObjectMapper objectMapper;
     private final int topK;
+    private final int maxHistory;
+    private final Duration sessionTtl;
+
+    private enum Role {
+        @JsonProperty("user") USER,
+        @JsonProperty("assistant") ASSISTANT
+    }
+
+    private record MessageDto(Role role, String content) {}
+
+    private record PipelineResult(AnswerResponse response, boolean aiGenerated) {}
 
     public ChatService(ChatClient.Builder chatClientBuilder,
                        VectorStore vectorStore,
-                       Bulkhead databaseBulkhead,
+                       Bulkhead ragPipelineBulkhead,
                        RateLimiter aiRateLimiter,
                        ChatMapper chatMapper,
+                       StringRedisTemplate redisTemplate,
+                       ObjectMapper objectMapper,
                        AppProperties appProperties) {
         this.chatClient = chatClientBuilder.build();
         this.vectorStore = vectorStore;
-        this.databaseBulkhead = databaseBulkhead;
+        this.ragPipelineBulkhead = ragPipelineBulkhead;
         this.aiRateLimiter = aiRateLimiter;
         this.chatMapper = chatMapper;
+        this.redisTemplate = redisTemplate;
+        this.objectMapper = objectMapper;
         this.topK = appProperties.rag().topK();
+        this.maxHistory = appProperties.rag().maxHistory();
+        this.sessionTtl = appProperties.rag().sessionTtl();
     }
 
     @Cacheable(value = "answers", keyGenerator = "questionKeyGenerator")
     public AnswerResponse answer(QuestionRequest request) {
         Question question = chatMapper.toQuestion(request);
-        return executeRagPipeline(question);
+        return executeRagPipeline(question, List.of()).response();
     }
 
-    private AnswerResponse executeRagPipeline(Question question) {
-        if (!databaseBulkhead.tryAcquirePermission()) {
-            throw BulkheadFullException.createBulkheadFullException(databaseBulkhead);
+    public AnswerResponse answerWithSession(String sessionId, QuestionRequest request) {
+        LinkedList<Message> history = loadHistory(sessionId);
+        Question question = chatMapper.toQuestion(request);
+        PipelineResult result = executeRagPipeline(question, history);
+        AnswerResponse response = result.response();
+        if (result.aiGenerated() && !isDuplicateOfLastQuestion(history, request.question())) {
+            history.add(new UserMessage(request.question()));
+            history.add(new AssistantMessage(response.answer()));
+            trimToMaxHistory(history);
+            saveHistory(sessionId, history);
+        }
+        return response;
+    }
+
+    private boolean isDuplicateOfLastQuestion(LinkedList<Message> history, String question) {
+        return history.size() >= 2
+                && history.getLast() instanceof AssistantMessage
+                && history.get(history.size() - 2) instanceof UserMessage um
+                && um.getText().equals(question);
+    }
+
+    private void trimToMaxHistory(LinkedList<Message> history) {
+        while (history.size() > maxHistory) {
+            history.removeFirst();
+            history.removeFirst();
+        }
+    }
+
+    public void clearSession(String sessionId) {
+        redisTemplate.delete(SESSION_KEY_PREFIX + sessionId);
+    }
+
+    private LinkedList<Message> loadHistory(String sessionId) {
+        String json = redisTemplate.opsForValue().get(SESSION_KEY_PREFIX + sessionId);
+        if (json == null) return new LinkedList<>();
+        try {
+            List<MessageDto> dtos = objectMapper.readValue(json, MESSAGE_LIST_TYPE);
+            return dtos.stream()
+                    .map(dto -> switch (dto.role()) {
+                        case null -> throw new IllegalArgumentException("Null role in session history");
+                        case USER -> (Message) new UserMessage(dto.content());
+                        case ASSISTANT -> new AssistantMessage(dto.content());
+                    })
+                    .collect(Collectors.toCollection(LinkedList::new));
+        } catch (JsonProcessingException | IllegalArgumentException e) {
+            log.warn("Failed to deserialize session history for session {}…, starting fresh: {}",
+                    sessionId.substring(0, Math.min(8, sessionId.length())), e.getMessage());
+            return new LinkedList<>();
+        }
+    }
+
+    private static String truncate(String s) {
+        return s.length() <= MAX_MESSAGE_CONTENT_LENGTH ? s : s.substring(0, MAX_MESSAGE_CONTENT_LENGTH);
+    }
+
+    private static Role toRole(Message message) {
+        return switch (message) {
+            case UserMessage _ -> Role.USER;
+            case AssistantMessage _ -> Role.ASSISTANT;
+            default -> throw new IllegalStateException(
+                    "Unsupported message type in session history: " + message.getClass());
+        };
+    }
+
+    private void saveHistory(String sessionId, List<Message> history) {
+        List<MessageDto> dtos = history.stream()
+                .map(m -> new MessageDto(toRole(m), truncate(m.getText())))
+                .toList();
+        try {
+            String json = objectMapper.writeValueAsString(dtos);
+            redisTemplate.opsForValue().set(SESSION_KEY_PREFIX + sessionId, json, sessionTtl);
+        } catch (JsonProcessingException e) {
+            log.warn("Failed to serialize session history for session {}…: {}",
+                    sessionId.substring(0, Math.min(8, sessionId.length())), e.getMessage());
+        }
+    }
+
+    private PipelineResult executeRagPipeline(Question question, List<Message> history) {
+        if (!ragPipelineBulkhead.tryAcquirePermission()) {
+            throw BulkheadFullException.createBulkheadFullException(ragPipelineBulkhead);
         }
         try {
             List<Document> relevant = vectorStore.similaritySearch(
                     SearchRequest.builder().query(question.text()).topK(topK).build());
-
-            Answer answer;
-            if (!aiRateLimiter.acquirePermission()) {
-                log.info("AI rate limit reached, using raw fallback for question.");
-                answer = rawFallback(relevant);
-            } else {
-                String context = relevant.stream()
-                        .map(Document::getText)
-                        .collect(Collectors.joining("\n---\n"));
-                log.debug("Calling AI.\nQuestion: {}\nRelevant chunks ({}):\n{}", question.text(), relevant.size(), context);
-                try {
-                    answer = callAi(question, context);
-                } catch (Exception e) {
-                    log.warn("AI call failed, using raw fallback: {}", e.getMessage(), e);
-                    answer = rawFallback(relevant);
-                }
-            }
-
-            return chatMapper.toResponse(answer);
+            return callAiOrFallback(question, relevant, history);
         } finally {
-            databaseBulkhead.onComplete();
+            ragPipelineBulkhead.onComplete();
+        }
+    }
+
+    private PipelineResult callAiOrFallback(Question question, List<Document> relevant, List<Message> history) {
+        if (!aiRateLimiter.acquirePermission()) {
+            log.info("AI rate limit reached, using raw fallback for question.");
+            return new PipelineResult(chatMapper.toResponse(rawFallback(relevant)), false);
+        }
+        String context = relevant.stream()
+                .map(Document::getText)
+                .collect(Collectors.joining("\n---\n"));
+        log.debug("Calling AI with {} relevant chunks (question length: {} chars).",
+                relevant.size(), question.text().length());
+        try {
+            Answer answer = callAi(question, context, history);
+            return new PipelineResult(chatMapper.toResponse(answer), true);
+        } catch (Exception e) {
+            log.warn("AI call failed, using raw fallback: {}", e.getMessage(), e);
+            return new PipelineResult(chatMapper.toResponse(rawFallback(relevant)), false);
         }
     }
 
     private Answer rawFallback(List<Document> relevant) {
         if (relevant.isEmpty()) {
-            return new Answer("AI is currently unavailable and no relevant information was found in the resume.");
+            return new Answer(AI_UNAVAILABLE_NO_CONTEXT);
         }
-        return new Answer("AI is currently unavailable. Here is the relevant information from the resume:\n\n"
+        return new Answer(AI_UNAVAILABLE_WITH_CONTEXT
                 + relevant.stream().map(Document::getText).collect(Collectors.joining("\n\n---\n\n")));
     }
 
-    private Answer callAi(Question question, String context) {
+    private Answer callAi(Question question, String context, List<Message> history) {
         String result = chatClient.prompt()
                 .system(SYSTEM_PROMPT)
+                .messages(history)
                 .user(u -> u.text("""
                         Resume context:
                         {context}
@@ -112,6 +228,6 @@ public class ChatService {
                         .param("question", question.text()))
                 .call()
                 .content();
-        return new Answer(result != null ? result : "No response from AI.");
+        return new Answer(result != null ? result : AI_EMPTY_RESPONSE);
     }
 }

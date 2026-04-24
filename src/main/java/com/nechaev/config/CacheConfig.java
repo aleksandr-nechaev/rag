@@ -26,7 +26,10 @@ import java.util.HexFormat;
 @EnableCaching
 public class CacheConfig {
 
-    private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
+    @Bean
+    public ObjectMapper objectMapper() {
+        return new ObjectMapper();
+    }
 
     @Bean
     public KeyGenerator questionKeyGenerator() {
@@ -38,9 +41,7 @@ public class CacheConfig {
         }
         return (target, method, params) -> {
             if (!(params[0] instanceof QuestionRequest req)) {
-                throw new IllegalArgumentException(
-                        "questionKeyGenerator supports only QuestionRequest, got: "
-                        + params[0].getClass().getName());
+                throw new IllegalArgumentException("questionKeyGenerator: unexpected argument type");
             }
             try {
                 MessageDigest md = (MessageDigest) prototype.clone();
@@ -54,13 +55,14 @@ public class CacheConfig {
 
     @Bean
     public RedisCacheManager cacheManager(RedisConnectionFactory connectionFactory,
-                                          AppProperties props) {
+                                          AppProperties props,
+                                          ObjectMapper objectMapper) {
         RedisSerializer<AnswerResponse> serializer = new RedisSerializer<>() {
             @Override
             public byte[] serialize(AnswerResponse value) {
                 if (value == null) return null;
                 try {
-                    return OBJECT_MAPPER.writeValueAsBytes(value);
+                    return objectMapper.writeValueAsBytes(value);
                 } catch (JsonProcessingException e) {
                     throw new SerializationException("Cannot serialize AnswerResponse", e);
                 }
@@ -70,7 +72,7 @@ public class CacheConfig {
             public AnswerResponse deserialize(byte[] bytes) {
                 if (bytes == null) return null;
                 try {
-                    return OBJECT_MAPPER.readValue(bytes, AnswerResponse.class);
+                    return objectMapper.readValue(bytes, AnswerResponse.class);
                 } catch (IOException e) {
                     throw new SerializationException("Cannot deserialize AnswerResponse", e);
                 }

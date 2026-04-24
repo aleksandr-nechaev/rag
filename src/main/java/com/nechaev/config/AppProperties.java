@@ -10,14 +10,14 @@ public record AppProperties(Cache cache, Protection protection, List<String> all
 
     public record Cache(Duration answerTtl) {}
 
-    public record Protection(Ai ai, Database database) {}
+    public record Protection(Ai ai, RagPipeline ragPipeline) {}
 
     public record Ai(int limitForPeriod, Duration limitRefreshPeriod, Duration timeoutDuration) {}
 
     // max-concurrent-calls must equal spring.datasource.hikari.maximum-pool-size
-    public record Database(int maxConcurrentCalls, Duration maxWaitDuration) {}
+    public record RagPipeline(int maxConcurrentCalls, Duration maxWaitDuration) {}
 
     public record Ingestion(String resumePath) {}
 
-    public record Rag(int topK) {}
+    public record Rag(int topK, int maxHistory, Duration sessionTtl) {}
 }

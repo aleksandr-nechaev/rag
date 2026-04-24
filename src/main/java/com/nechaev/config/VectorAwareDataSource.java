@@ -10,6 +10,7 @@ import java.sql.Connection;
 import java.sql.SQLException;
 
 // Registers PGvector deserializer on every new connection so vector columns can be read back.
+// Wraps the raw non-pooled DataSource — HikariCP calls this only on physical connection creation.
 class VectorAwareDataSource extends AbstractDataSource {
 
     private static final Logger log = LoggerFactory.getLogger(VectorAwareDataSource.class);

@@ -6,9 +6,13 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.mockito.junit.jupiter.MockitoSettings;
+import org.mockito.quality.Strictness;
 import org.springframework.ai.vectorstore.VectorStore;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.TransactionStatus;
 
 import java.io.InputStream;
 import java.security.MessageDigest;
@@ -19,15 +23,18 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
+@MockitoSettings(strictness = Strictness.LENIENT)
 class ResumeIngestionServiceTest {
 
     @Mock VectorStore vectorStore;
     @Mock JdbcTemplate jdbcTemplate;
+    @Mock PlatformTransactionManager transactionManager;
 
     ResumeIngestionService service;
     String realPdfHash;
@@ -36,9 +43,11 @@ class ResumeIngestionServiceTest {
 
     @BeforeEach
     void setUp() throws Exception {
+        when(transactionManager.getTransaction(any())).thenReturn(mock(TransactionStatus.class));
+
         AppProperties.Ingestion ingestion = new AppProperties.Ingestion(RESUME_PATH);
         AppProperties appProperties = new AppProperties(null, null, null, ingestion, null);
-        service = new ResumeIngestionService(vectorStore, jdbcTemplate, appProperties);
+        service = new ResumeIngestionService(vectorStore, jdbcTemplate, transactionManager, appProperties);
 
         try (InputStream is = new ClassPathResource(RESUME_PATH).getInputStream()) {
             byte[] bytes = is.readAllBytes();

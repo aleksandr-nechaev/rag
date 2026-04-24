@@ -1,5 +1,6 @@
 package com.nechaev.service;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.nechaev.config.AppProperties;
 import com.nechaev.dto.AnswerResponse;
 import com.nechaev.dto.QuestionRequest;
@@ -17,10 +18,16 @@ import org.mockito.Answers;
 import org.mockito.ArgumentMatchers;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.mockito.junit.jupiter.MockitoSettings;
+import org.mockito.quality.Strictness;
 import org.springframework.ai.chat.client.ChatClient;
+import org.springframework.ai.chat.messages.Message;
 import org.springframework.ai.document.Document;
 import org.springframework.ai.vectorstore.VectorStore;
+import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.data.redis.core.ValueOperations;
 
+import java.time.Duration;
 import java.util.List;
 import java.util.function.Consumer;
 
@@ -32,16 +39,21 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
+@MockitoSettings(strictness = Strictness.LENIENT)
 class ChatServiceTest {
 
     @Mock(answer = Answers.RETURNS_DEEP_STUBS)
     ChatClient.Builder chatClientBuilder;
 
     @Mock VectorStore vectorStore;
-    @Mock Bulkhead databaseBulkhead;
+    @Mock Bulkhead ragPipelineBulkhead;
     @Mock RateLimiter aiRateLimiter;
     @Mock ChatMapper chatMapper;
     @Mock AppProperties appProperties;
+    @Mock StringRedisTemplate redisTemplate;
+    @Mock ValueOperations<String, String> valueOperations;
+
+    final ObjectMapper objectMapper = new ObjectMapper();
 
     ChatService chatService;
 
@@ -50,17 +62,19 @@ class ChatServiceTest {
 
     @BeforeEach
     void setUp() {
-        AppProperties.Rag rag = new AppProperties.Rag(3);
+        AppProperties.Rag rag = new AppProperties.Rag(3, 20, Duration.ofHours(1));
         when(appProperties.rag()).thenReturn(rag);
-        chatService = new ChatService(chatClientBuilder, vectorStore, databaseBulkhead,
-                aiRateLimiter, chatMapper, appProperties);
+        when(redisTemplate.opsForValue()).thenReturn(valueOperations);
+        when(valueOperations.get(anyString())).thenReturn(null);
+        chatService = new ChatService(chatClientBuilder, vectorStore, ragPipelineBulkhead,
+                aiRateLimiter, chatMapper, redisTemplate, objectMapper, appProperties);
         when(chatMapper.toQuestion(REQUEST)).thenReturn(QUESTION);
     }
 
     @Test
     void answerBulkheadFullThrowsBulkheadFullException() {
-        when(databaseBulkhead.tryAcquirePermission()).thenReturn(false);
-        when(databaseBulkhead.getBulkheadConfig()).thenReturn(BulkheadConfig.ofDefaults());
+        when(ragPipelineBulkhead.tryAcquirePermission()).thenReturn(false);
+        when(ragPipelineBulkhead.getBulkheadConfig()).thenReturn(BulkheadConfig.ofDefaults());
 
         assertThatThrownBy(() -> chatService.answer(REQUEST))
                 .isInstanceOf(BulkheadFullException.class);
@@ -69,7 +83,7 @@ class ChatServiceTest {
     @Test
     void answerRateLimitReachedReturnsRawFallback() {
         Document doc = new Document("SKILLS\nJava, Spring Boot");
-        when(databaseBulkhead.tryAcquirePermission()).thenReturn(true);
+        when(ragPipelineBulkhead.tryAcquirePermission()).thenReturn(true);
         when(vectorStore.similaritySearch(any(org.springframework.ai.vectorstore.SearchRequest.class))).thenReturn(List.of(doc));
         when(aiRateLimiter.acquirePermission()).thenReturn(false);
         when(chatMapper.toResponse(any())).thenAnswer(inv ->
@@ -79,16 +93,17 @@ class ChatServiceTest {
 
         assertThat(result.answer()).contains("AI is currently unavailable");
         assertThat(result.answer()).contains("SKILLS");
-        verify(databaseBulkhead).onComplete();
+        verify(ragPipelineBulkhead).onComplete();
     }
 
     @Test
     void answerAiCallSucceedsReturnsAiAnswer() {
-        when(databaseBulkhead.tryAcquirePermission()).thenReturn(true);
+        when(ragPipelineBulkhead.tryAcquirePermission()).thenReturn(true);
         when(vectorStore.similaritySearch(any(org.springframework.ai.vectorstore.SearchRequest.class))).thenReturn(List.of(new Document("context")));
         when(aiRateLimiter.acquirePermission()).thenReturn(true);
         when(chatClientBuilder.build().prompt()
                 .system(anyString())
+                .messages(ArgumentMatchers.<List<Message>>any())
                 .user(ArgumentMatchers.<Consumer<ChatClient.PromptUserSpec>>any())
                 .call().content())
                 .thenReturn("Aleksandr has 5 years of Java experience.");
@@ -102,11 +117,12 @@ class ChatServiceTest {
 
     @Test
     void answerAiCallFailsReturnsRawFallback() {
-        when(databaseBulkhead.tryAcquirePermission()).thenReturn(true);
+        when(ragPipelineBulkhead.tryAcquirePermission()).thenReturn(true);
         when(vectorStore.similaritySearch(any(org.springframework.ai.vectorstore.SearchRequest.class))).thenReturn(List.of(new Document("context")));
         when(aiRateLimiter.acquirePermission()).thenReturn(true);
         when(chatClientBuilder.build().prompt()
                 .system(anyString())
+                .messages(ArgumentMatchers.<List<Message>>any())
                 .user(ArgumentMatchers.<Consumer<ChatClient.PromptUserSpec>>any())
                 .call().content())
                 .thenThrow(new RuntimeException("AI unavailable"));
@@ -116,12 +132,12 @@ class ChatServiceTest {
         AnswerResponse result = chatService.answer(REQUEST);
 
         assertThat(result.answer()).contains("AI is currently unavailable");
-        verify(databaseBulkhead).onComplete();
+        verify(ragPipelineBulkhead).onComplete();
     }
 
     @Test
     void answerNoRelevantDocsFallbackMentionsNoInfoFound() {
-        when(databaseBulkhead.tryAcquirePermission()).thenReturn(true);
+        when(ragPipelineBulkhead.tryAcquirePermission()).thenReturn(true);
         when(vectorStore.similaritySearch(any(org.springframework.ai.vectorstore.SearchRequest.class))).thenReturn(List.of());
         when(aiRateLimiter.acquirePermission()).thenReturn(false);
         when(chatMapper.toResponse(any())).thenAnswer(inv ->
@@ -130,17 +146,104 @@ class ChatServiceTest {
         AnswerResponse result = chatService.answer(REQUEST);
 
         assertThat(result.answer()).contains("no relevant information");
-        verify(databaseBulkhead).onComplete();
+        verify(ragPipelineBulkhead).onComplete();
     }
 
     @Test
     void answerBulkheadPermissionAlwaysReleasedEvenOnException() {
-        when(databaseBulkhead.tryAcquirePermission()).thenReturn(true);
+        when(ragPipelineBulkhead.tryAcquirePermission()).thenReturn(true);
         when(vectorStore.similaritySearch(any(org.springframework.ai.vectorstore.SearchRequest.class)))
                 .thenThrow(new RuntimeException("DB error"));
 
         assertThatThrownBy(() -> chatService.answer(REQUEST))
                 .isInstanceOf(RuntimeException.class);
-        verify(databaseBulkhead).onComplete();
+        verify(ragPipelineBulkhead).onComplete();
+    }
+
+    @Test
+    void answerWithSessionSavesHistoryToRedisOnAiSuccess() {
+        when(ragPipelineBulkhead.tryAcquirePermission()).thenReturn(true);
+        when(vectorStore.similaritySearch(any(org.springframework.ai.vectorstore.SearchRequest.class))).thenReturn(List.of(new Document("context")));
+        when(aiRateLimiter.acquirePermission()).thenReturn(true);
+        when(chatClientBuilder.build().prompt()
+                .system(anyString())
+                .messages(ArgumentMatchers.<List<Message>>any())
+                .user(ArgumentMatchers.<Consumer<ChatClient.PromptUserSpec>>any())
+                .call().content())
+                .thenReturn("AI answer.");
+        when(chatMapper.toResponse(any())).thenAnswer(inv ->
+                new AnswerResponse(inv.<Answer>getArgument(0).text()));
+
+        chatService.answerWithSession("session-1", REQUEST);
+
+        verify(valueOperations).set(anyString(), anyString(), any(Duration.class));
+    }
+
+    @Test
+    void answerWithSessionDoesNotSaveHistoryOnFallback() {
+        when(ragPipelineBulkhead.tryAcquirePermission()).thenReturn(true);
+        when(vectorStore.similaritySearch(any(org.springframework.ai.vectorstore.SearchRequest.class))).thenReturn(List.of(new Document("context")));
+        when(aiRateLimiter.acquirePermission()).thenReturn(false);
+        when(chatMapper.toResponse(any())).thenAnswer(inv ->
+                new AnswerResponse(inv.<Answer>getArgument(0).text()));
+
+        chatService.answerWithSession("session-1", REQUEST);
+
+        verify(valueOperations, org.mockito.Mockito.never()).set(anyString(), anyString(), any(Duration.class));
+    }
+
+    @Test
+    void answerWithSessionLoadsExistingHistoryFromRedis() throws Exception {
+        String existingHistory = objectMapper.writeValueAsString(List.of(
+                new java.util.LinkedHashMap<String, String>() {{ put("role", "user"); put("content", "Previous question"); }},
+                new java.util.LinkedHashMap<String, String>() {{ put("role", "assistant"); put("content", "Previous answer"); }}
+        ));
+        when(valueOperations.get(anyString())).thenReturn(existingHistory);
+        when(ragPipelineBulkhead.tryAcquirePermission()).thenReturn(true);
+        when(vectorStore.similaritySearch(any(org.springframework.ai.vectorstore.SearchRequest.class))).thenReturn(List.of(new Document("context")));
+        when(aiRateLimiter.acquirePermission()).thenReturn(true);
+        when(chatClientBuilder.build().prompt()
+                .system(anyString())
+                .messages(ArgumentMatchers.<List<Message>>any())
+                .user(ArgumentMatchers.<Consumer<ChatClient.PromptUserSpec>>any())
+                .call().content())
+                .thenReturn("AI answer.");
+        when(chatMapper.toResponse(any())).thenAnswer(inv ->
+                new AnswerResponse(inv.<Answer>getArgument(0).text()));
+
+        chatService.answerWithSession("session-1", REQUEST);
+
+        verify(valueOperations).set(anyString(), anyString(), any(Duration.class));
+    }
+
+    @Test
+    void answerWithSessionDuplicateQuestionSkipsHistorySave() throws Exception {
+        String existingHistory = objectMapper.writeValueAsString(List.of(
+                new java.util.LinkedHashMap<String, String>() {{ put("role", "user"); put("content", "What is your experience?"); }},
+                new java.util.LinkedHashMap<String, String>() {{ put("role", "assistant"); put("content", "Previous answer"); }}
+        ));
+        when(valueOperations.get(anyString())).thenReturn(existingHistory);
+        when(ragPipelineBulkhead.tryAcquirePermission()).thenReturn(true);
+        when(vectorStore.similaritySearch(any(org.springframework.ai.vectorstore.SearchRequest.class))).thenReturn(List.of(new Document("context")));
+        when(aiRateLimiter.acquirePermission()).thenReturn(true);
+        when(chatClientBuilder.build().prompt()
+                .system(anyString())
+                .messages(ArgumentMatchers.<List<Message>>any())
+                .user(ArgumentMatchers.<Consumer<ChatClient.PromptUserSpec>>any())
+                .call().content())
+                .thenReturn("AI answer.");
+        when(chatMapper.toResponse(any())).thenAnswer(inv ->
+                new AnswerResponse(inv.<Answer>getArgument(0).text()));
+
+        chatService.answerWithSession("session-1", REQUEST);
+
+        verify(valueOperations, org.mockito.Mockito.never()).set(anyString(), anyString(), any(Duration.class));
+    }
+
+    @Test
+    void clearSessionDeletesRedisKey() {
+        chatService.clearSession("session-1");
+
+        verify(redisTemplate).delete("session:session-1");
     }
 }

@@ -21,7 +21,7 @@ spring:
     username: ${DB_USERNAME:postgres}
     password: ${DB_PASSWORD:postgres}
     hikari:
-      maximum-pool-size: 5      # must equal app.protection.database.max-concurrent-calls
+      maximum-pool-size: 5      # must equal app.protection.rag-pipeline.max-concurrent-calls
       minimum-idle: 1
       connection-timeout: 2000
       idle-timeout: 300000
@@ -29,6 +29,8 @@ spring:
     google:
       genai:
         api-key: ${GOOGLE_AI_API_KEY}
+        api:
+          timeout: 30s
         chat:
           options:
             model: gemini-2.5-flash-lite
@@ -48,11 +50,13 @@ app:
     resume-path: static/Aleksandr Nechaev resume.pdf
   rag:
     top-k: 3
+    max-history: 20
+    session-ttl: 1h
   protection:
     ai:
       limit-for-period: 15
       limit-refresh-period: 1m
       timeout-duration: 0s
-    database:
+    rag-pipeline:
       max-concurrent-calls: 5   # must equal spring.datasource.hikari.maximum-pool-size
       max-wait-duration: 0ms

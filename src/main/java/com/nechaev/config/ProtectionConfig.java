@@ -21,11 +21,11 @@ public class ProtectionConfig {
     }
 
     @Bean
-    public Bulkhead databaseBulkhead(AppProperties props) {
-        AppProperties.Database db = props.protection().database();
-        return Bulkhead.of("database", BulkheadConfig.custom()
-                .maxConcurrentCalls(db.maxConcurrentCalls())
-                .maxWaitDuration(db.maxWaitDuration())
+    public Bulkhead ragPipelineBulkhead(AppProperties props) {
+        AppProperties.RagPipeline rp = props.protection().ragPipeline();
+        return Bulkhead.of("rag-pipeline", BulkheadConfig.custom()
+                .maxConcurrentCalls(rp.maxConcurrentCalls())
+                .maxWaitDuration(rp.maxWaitDuration())
                 .build());
     }
 }
