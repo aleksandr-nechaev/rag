@@ -1,9 +1,6 @@
 package com.nechaev.service;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.core.type.TypeReference;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.nechaev.config.AppProperties;
 import com.nechaev.dto.AnswerResponse;
 import com.nechaev.dto.QuestionRequest;
@@ -25,6 +22,9 @@ import org.springframework.ai.vectorstore.VectorStore;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
+import tools.jackson.core.JacksonException;
+import tools.jackson.core.type.TypeReference;
+import tools.jackson.databind.ObjectMapper;
 
 import java.time.Duration;
 import java.util.LinkedList;
@@ -36,6 +36,8 @@ public class ChatService {
 
     private static final Logger log = LoggerFactory.getLogger(ChatService.class);
     private static final String SESSION_KEY_PREFIX = "session:";
+    // Cap on individual session message content stored in Redis. User input is bounded
+    // separately by QuestionRequest @Size(max=1000); assistant replies can be longer, hence 2000.
     private static final int MAX_MESSAGE_CONTENT_LENGTH = 2000;
     private static final String AI_EMPTY_RESPONSE = "No response from AI.";
     private static final String AI_UNAVAILABLE_NO_CONTEXT =
@@ -141,7 +143,7 @@ public class ChatService {
                         case ASSISTANT -> new AssistantMessage(dto.content());
                     })
                     .collect(Collectors.toCollection(LinkedList::new));
-        } catch (JsonProcessingException | IllegalArgumentException e) {
+        } catch (JacksonException | IllegalArgumentException e) {
             log.warn("Failed to deserialize session history for session {}…, starting fresh: {}",
                     sessionId.substring(0, Math.min(8, sessionId.length())), e.getMessage());
             return new LinkedList<>();
@@ -168,7 +170,7 @@ public class ChatService {
         try {
             String json = objectMapper.writeValueAsString(dtos);
             redisTemplate.opsForValue().set(SESSION_KEY_PREFIX + sessionId, json, sessionTtl);
-        } catch (JsonProcessingException e) {
+        } catch (JacksonException e) {
             log.warn("Failed to serialize session history for session {}…: {}",
                     sessionId.substring(0, Math.min(8, sessionId.length())), e.getMessage());
         }

@@ -1,7 +1,5 @@
 package com.nechaev.config;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.nechaev.dto.AnswerResponse;
 import com.nechaev.dto.QuestionRequest;
 import org.springframework.cache.annotation.EnableCaching;
@@ -14,8 +12,9 @@ import org.springframework.data.redis.connection.RedisConnectionFactory;
 import org.springframework.data.redis.serializer.RedisSerializationContext;
 import org.springframework.data.redis.serializer.RedisSerializer;
 import org.springframework.data.redis.serializer.SerializationException;
+import tools.jackson.core.JacksonException;
+import tools.jackson.databind.ObjectMapper;
 
-import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
@@ -25,11 +24,6 @@ import java.util.HexFormat;
 @Configuration
 @EnableCaching
 public class CacheConfig {
-
-    @Bean
-    public ObjectMapper objectMapper() {
-        return new ObjectMapper();
-    }
 
     @Bean
     public KeyGenerator questionKeyGenerator() {
@@ -57,34 +51,35 @@ public class CacheConfig {
     public RedisCacheManager cacheManager(RedisConnectionFactory connectionFactory,
                                           AppProperties props,
                                           ObjectMapper objectMapper) {
-        RedisSerializer<AnswerResponse> serializer = new RedisSerializer<>() {
-            @Override
-            public byte[] serialize(AnswerResponse value) {
-                if (value == null) return null;
-                try {
-                    return objectMapper.writeValueAsBytes(value);
-                } catch (JsonProcessingException e) {
-                    throw new SerializationException("Cannot serialize AnswerResponse", e);
-                }
-            }
-
-            @Override
-            public AnswerResponse deserialize(byte[] bytes) {
-                if (bytes == null) return null;
-                try {
-                    return objectMapper.readValue(bytes, AnswerResponse.class);
-                } catch (IOException e) {
-                    throw new SerializationException("Cannot deserialize AnswerResponse", e);
-                }
-            }
-        };
-
         RedisCacheConfiguration config = RedisCacheConfiguration.defaultCacheConfig()
                 .entryTtl(props.cache().answerTtl())
                 .disableCachingNullValues()
-                .serializeValuesWith(RedisSerializationContext.SerializationPair.fromSerializer(serializer));
+                .serializeValuesWith(RedisSerializationContext.SerializationPair.fromSerializer(
+                        new AnswerResponseSerializer(objectMapper)));
         return RedisCacheManager.builder(connectionFactory)
                 .cacheDefaults(config)
                 .build();
+    }
+
+    private record AnswerResponseSerializer(ObjectMapper objectMapper) implements RedisSerializer<AnswerResponse> {
+        @Override
+        public byte[] serialize(AnswerResponse value) {
+            if (value == null) return null;
+            try {
+                return objectMapper.writeValueAsBytes(value);
+            } catch (JacksonException e) {
+                throw new SerializationException("Cannot serialize AnswerResponse", e);
+            }
+        }
+
+        @Override
+        public AnswerResponse deserialize(byte[] bytes) {
+            if (bytes == null) return null;
+            try {
+                return objectMapper.readValue(bytes, AnswerResponse.class);
+            } catch (JacksonException e) {
+                throw new SerializationException("Cannot deserialize AnswerResponse", e);
+            }
+        }
     }
 }

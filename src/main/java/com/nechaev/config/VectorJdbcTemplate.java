@@ -20,6 +20,11 @@ import java.util.List;
 // Bypasses TypeInfoCache.pgNameToOid for the "vector" type by sending PGvector values as
 // untyped text (Types.OTHER / Oid.UNSPECIFIED). PostgreSQL infers the vector type from the
 // column/operator context and parses it via vector_in, avoiding the OID lookup entirely.
+//
+// Only batchUpdate(String, BatchPreparedStatementSetter) and query(String, RowMapper, Object...)
+// are PGvector-aware. If new write paths pass PGvector arguments through other JdbcTemplate
+// overloads (e.g. update(String, Object...)), extend the overrides accordingly — otherwise
+// those calls will fail with an OID-lookup error.
 class VectorJdbcTemplate extends JdbcTemplate {
 
     VectorJdbcTemplate(DataSource dataSource) {

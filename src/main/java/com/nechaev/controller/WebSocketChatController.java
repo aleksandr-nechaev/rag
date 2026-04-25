@@ -41,6 +41,10 @@ public class WebSocketChatController {
             response = chatService.answerWithSession(sessionId, request);
         } catch (BulkheadFullException | RequestNotPermitted e) {
             response = new AnswerResponse("Server is busy, please try again later.");
+        } catch (Exception e) {
+            log.error("WebSocket ask failed for session {}…",
+                    sessionId.substring(0, Math.min(8, sessionId.length())), e);
+            response = new AnswerResponse("Something went wrong. Please try again.");
         }
 
         SimpMessageHeaderAccessor replyAccessor = SimpMessageHeaderAccessor.create();
@@ -51,6 +55,8 @@ public class WebSocketChatController {
 
     @EventListener
     public void onDisconnect(SessionDisconnectEvent event) {
-        chatService.clearSession(event.getSessionId());
+        String sessionId = event.getSessionId();
+        if (sessionId == null) return;
+        chatService.clearSession(sessionId);
     }
 }

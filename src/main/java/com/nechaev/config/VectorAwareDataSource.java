@@ -34,9 +34,11 @@ class VectorAwareDataSource extends AbstractDataSource {
     private Connection register(Connection conn) throws SQLException {
         try {
             PGvector.addVectorType(conn);
-        } catch (Exception e) {
-            log.warn("Failed to register PGvector type on connection: {}", e.getMessage());
+            return conn;
+        } catch (SQLException e) {
+            log.error("Failed to register PGvector type on connection — vector reads will be broken.", e);
+            conn.close();
+            throw e;
         }
-        return conn;
     }
 }

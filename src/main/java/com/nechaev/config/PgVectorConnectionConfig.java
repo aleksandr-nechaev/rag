@@ -24,8 +24,10 @@ public class PgVectorConnectionConfig {
     @Value("${spring.datasource.password}")
     private String password;
 
-    // VectorAwareDataSource wraps the raw non-pooled DataSource, so HikariCP calls it only
-    // when creating new physical connections — not on every pool checkout.
+    // DriverManagerDataSource here is not a connection pool — it is a single-shot factory of
+    // raw JDBC connections that HikariCP calls only on physical connection creation. The pooling
+    // is done by the outer HikariDataSource. VectorAwareDataSource wraps the factory so that
+    // PGvector type registration runs once per physical connection, not on every pool checkout.
     @Bean
     @Primary
     @ConfigurationProperties("spring.datasource.hikari")
