@@ -212,7 +212,7 @@
         setWaiting(true);
 
         client.publish({
-            destination: '/app/ask',
+            destination: '/app/v1/ask',
             body: JSON.stringify({ question: text })
         });
     }
@@ -223,7 +223,7 @@
 
         onConnect: () => {
             setConnected(true);
-            client.subscribe('/user/queue/answers', msg => {
+            client.subscribe('/user/queue/v1/answers', msg => {
                 setWaiting(false);
                 const body = JSON.parse(msg.body);
                 appendMessage(body.answer, 'assistant');

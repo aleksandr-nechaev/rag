@@ -71,18 +71,35 @@ curl -X POST http://localhost:8080/api/v1/ask \
 
 ### WebSocket (STOMP over SockJS)
 
-Connect to `http://localhost:8080/ws`, subscribe to `/topic/answers`, publish to `/app/ask`:
+Connect to `http://localhost:8080/ws`, subscribe to `/user/queue/v1/answers` (per-session reply), publish to `/app/v1/ask`:
 
 ```javascript
 const client = new StompJs.Client({
     webSocketFactory: () => new SockJS('http://localhost:8080/ws')
 });
 client.onConnect = () => {
-    client.subscribe('/topic/answers', msg => console.log(JSON.parse(msg.body)));
-    client.publish({ destination: '/app/ask', body: JSON.stringify({ question: 'Tell me about Aleksandr' }) });
+    client.subscribe('/user/queue/v1/answers', msg => console.log(JSON.parse(msg.body)));
+    client.publish({ destination: '/app/v1/ask', body: JSON.stringify({ question: 'Tell me about Aleksandr' }) });
 };
 client.activate();
 ```
+
+### API Documentation
+
+Once the app is running:
+
+| Endpoint                                                   | Description                                          |
+|------------------------------------------------------------|------------------------------------------------------|
+| [`/swagger-ui.html`](http://localhost:8080/swagger-ui.html) | REST API explorer (OpenAPI 3 via springdoc)         |
+| [`/v3/api-docs`](http://localhost:8080/v3/api-docs)         | OpenAPI 3 JSON spec                                 |
+| [`/springwolf/asyncapi-ui.html`](http://localhost:8080/springwolf/asyncapi-ui.html) | WebSocket/STOMP API explorer (AsyncAPI via springwolf) |
+| [`/springwolf/docs`](http://localhost:8080/springwolf/docs) | AsyncAPI JSON spec                                  |
+| [`/actuator/metrics/ai.tokens`](http://localhost:8080/actuator/metrics/ai.tokens) | Gemini token usage counters (Micrometer)            |
+| [`/actuator/prometheus`](http://localhost:8080/actuator/prometheus) | All metrics in Prometheus exposition format         |
+
+These admin endpoints require **HTTP basic auth** (role `ADMIN`). Default username is `admin`; password is auto-generated on each startup and printed to the console (`Using generated security password: ...`). Override via env var `SPRING_SECURITY_USER_PASSWORD` (and `ADMIN_USER` for the username) before deploying. Public endpoints (`/`, `/ws/**`, `/api/v1/**`) remain unauthenticated.
+
+For **production deploys**, run with `SPRING_PROFILES_ACTIVE=prod`. The `prod` profile activates a startup check that fails fast if `SPRING_SECURITY_USER_PASSWORD` is not set, preventing the auto-generated password from leaking through stdout/log collection.
 
 ## Build & Test
 

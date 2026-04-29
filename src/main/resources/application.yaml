@@ -4,6 +4,11 @@ spring:
   threads:
     virtual:
       enabled: true
+  security:
+    user:
+      name: ${ADMIN_USER:admin}
+      password: ${ADMIN_PASSWORD}
+      roles: ADMIN
   data:
     redis:
       host: ${REDIS_HOST:localhost}
@@ -40,6 +45,36 @@ spring:
         dimensions: 384
         distance-type: COSINE_DISTANCE
         index-type: HNSW
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus
+  endpoint:
+    health:
+      probes:
+        enabled: true
+
+springdoc:
+  api-docs:
+    path: /v3/api-docs
+  swagger-ui:
+    path: /swagger-ui.html
+    operations-sorter: method
+
+springwolf:
+  enabled: true
+  docket:
+    base-package: com.nechaev
+    info:
+      title: RAG Resume WebSocket API
+      version: v1
+      description: STOMP-over-WebSocket Q&A endpoints for the RAG Resume service.
+    servers:
+      stomp:
+        host: localhost:8080
+        protocol: stomp
 
 app:
   allowed-origins:

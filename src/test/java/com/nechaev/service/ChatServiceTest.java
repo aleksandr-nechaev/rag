@@ -11,6 +11,7 @@ import io.github.resilience4j.bulkhead.Bulkhead;
 import io.github.resilience4j.bulkhead.BulkheadConfig;
 import io.github.resilience4j.bulkhead.BulkheadFullException;
 import io.github.resilience4j.ratelimiter.RateLimiter;
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -21,7 +22,12 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.mockito.junit.jupiter.MockitoSettings;
 import org.mockito.quality.Strictness;
 import org.springframework.ai.chat.client.ChatClient;
+import org.springframework.ai.chat.messages.AssistantMessage;
 import org.springframework.ai.chat.messages.Message;
+import org.springframework.ai.chat.metadata.ChatResponseMetadata;
+import org.springframework.ai.chat.metadata.DefaultUsage;
+import org.springframework.ai.chat.model.ChatResponse;
+import org.springframework.ai.chat.model.Generation;
 import org.springframework.ai.document.Document;
 import org.springframework.ai.vectorstore.VectorStore;
 import org.springframework.data.redis.core.StringRedisTemplate;
@@ -56,6 +62,7 @@ class ChatServiceTest {
     final ObjectMapper objectMapper = new ObjectMapper();
 
     ChatService chatService;
+    AiUsageMetrics aiUsageMetrics;
 
     static final QuestionRequest REQUEST  = new QuestionRequest("What is your experience?");
     static final Question        QUESTION = new Question("What is your experience?");
@@ -66,9 +73,19 @@ class ChatServiceTest {
         when(appProperties.rag()).thenReturn(rag);
         when(redisTemplate.opsForValue()).thenReturn(valueOperations);
         when(valueOperations.get(anyString())).thenReturn(null);
+        aiUsageMetrics = new AiUsageMetrics(new SimpleMeterRegistry());
         chatService = new ChatService(chatClientBuilder, vectorStore, ragPipelineBulkhead,
-                aiRateLimiter, chatMapper, redisTemplate, objectMapper, appProperties);
+                aiRateLimiter, chatMapper, redisTemplate, objectMapper, aiUsageMetrics, appProperties);
         when(chatMapper.toQuestion(REQUEST)).thenReturn(QUESTION);
+    }
+
+    private static ChatResponse stubChatResponse(String text) {
+        ChatResponseMetadata metadata = ChatResponseMetadata.builder()
+                .model("gemini-2.5-flash-lite")
+                .usage(new DefaultUsage(10, 20, 30))
+                .build();
+        Generation generation = new Generation(new AssistantMessage(text));
+        return new ChatResponse(List.of(generation), metadata);
     }
 
     @Test
@@ -105,8 +122,8 @@ class ChatServiceTest {
                 .system(anyString())
                 .messages(ArgumentMatchers.<List<Message>>any())
                 .user(ArgumentMatchers.<Consumer<ChatClient.PromptUserSpec>>any())
-                .call().content())
-                .thenReturn("Aleksandr has 5 years of Java experience.");
+                .call().chatResponse())
+                .thenReturn(stubChatResponse("Aleksandr has 5 years of Java experience."));
         AnswerResponse expected = new AnswerResponse("Aleksandr has 5 years of Java experience.");
         when(chatMapper.toResponse(any())).thenReturn(expected);
 
@@ -124,7 +141,7 @@ class ChatServiceTest {
                 .system(anyString())
                 .messages(ArgumentMatchers.<List<Message>>any())
                 .user(ArgumentMatchers.<Consumer<ChatClient.PromptUserSpec>>any())
-                .call().content())
+                .call().chatResponse())
                 .thenThrow(new RuntimeException("AI unavailable"));
         when(chatMapper.toResponse(any())).thenAnswer(inv ->
                 new AnswerResponse(inv.<Answer>getArgument(0).text()));
@@ -169,8 +186,8 @@ class ChatServiceTest {
                 .system(anyString())
                 .messages(ArgumentMatchers.<List<Message>>any())
                 .user(ArgumentMatchers.<Consumer<ChatClient.PromptUserSpec>>any())
-                .call().content())
-                .thenReturn("AI answer.");
+                .call().chatResponse())
+                .thenReturn(stubChatResponse("AI answer."));
         when(chatMapper.toResponse(any())).thenAnswer(inv ->
                 new AnswerResponse(inv.<Answer>getArgument(0).text()));
 
@@ -206,8 +223,8 @@ class ChatServiceTest {
                 .system(anyString())
                 .messages(ArgumentMatchers.<List<Message>>any())
                 .user(ArgumentMatchers.<Consumer<ChatClient.PromptUserSpec>>any())
-                .call().content())
-                .thenReturn("AI answer.");
+                .call().chatResponse())
+                .thenReturn(stubChatResponse("AI answer."));
         when(chatMapper.toResponse(any())).thenAnswer(inv ->
                 new AnswerResponse(inv.<Answer>getArgument(0).text()));
 
@@ -230,8 +247,8 @@ class ChatServiceTest {
                 .system(anyString())
                 .messages(ArgumentMatchers.<List<Message>>any())
                 .user(ArgumentMatchers.<Consumer<ChatClient.PromptUserSpec>>any())
-                .call().content())
-                .thenReturn("AI answer.");
+                .call().chatResponse())
+                .thenReturn(stubChatResponse("AI answer."));
         when(chatMapper.toResponse(any())).thenAnswer(inv ->
                 new AnswerResponse(inv.<Answer>getArgument(0).text()));
 

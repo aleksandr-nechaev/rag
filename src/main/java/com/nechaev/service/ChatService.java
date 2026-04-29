@@ -16,6 +16,8 @@ import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.ai.chat.messages.AssistantMessage;
 import org.springframework.ai.chat.messages.Message;
 import org.springframework.ai.chat.messages.UserMessage;
+import org.springframework.ai.chat.model.ChatResponse;
+import org.springframework.ai.chat.model.Generation;
 import org.springframework.ai.document.Document;
 import org.springframework.ai.vectorstore.SearchRequest;
 import org.springframework.ai.vectorstore.VectorStore;
@@ -60,6 +62,7 @@ public class ChatService {
     private final ChatMapper chatMapper;
     private final StringRedisTemplate redisTemplate;
     private final ObjectMapper objectMapper;
+    private final AiUsageMetrics aiUsageMetrics;
     private final int topK;
     private final int maxHistory;
     private final Duration sessionTtl;
@@ -80,6 +83,7 @@ public class ChatService {
                        ChatMapper chatMapper,
                        StringRedisTemplate redisTemplate,
                        ObjectMapper objectMapper,
+                       AiUsageMetrics aiUsageMetrics,
                        AppProperties appProperties) {
         this.chatClient = chatClientBuilder.build();
         this.vectorStore = vectorStore;
@@ -88,6 +92,7 @@ public class ChatService {
         this.chatMapper = chatMapper;
         this.redisTemplate = redisTemplate;
         this.objectMapper = objectMapper;
+        this.aiUsageMetrics = aiUsageMetrics;
         this.topK = appProperties.rag().topK();
         this.maxHistory = appProperties.rag().maxHistory();
         this.sessionTtl = appProperties.rag().sessionTtl();
@@ -192,6 +197,7 @@ public class ChatService {
     private PipelineResult callAiOrFallback(Question question, List<Document> relevant, List<Message> history) {
         if (!aiRateLimiter.acquirePermission()) {
             log.info("AI rate limit reached, using raw fallback for question.");
+            aiUsageMetrics.recordOutcome(AiUsageMetrics.Outcome.FALLBACK_RATE_LIMIT);
             return new PipelineResult(chatMapper.toResponse(rawFallback(relevant)), false);
         }
         String context = relevant.stream()
@@ -201,9 +207,11 @@ public class ChatService {
                 relevant.size(), question.text().length());
         try {
             Answer answer = callAi(question, context, history);
+            aiUsageMetrics.recordOutcome(AiUsageMetrics.Outcome.AI);
             return new PipelineResult(chatMapper.toResponse(answer), true);
         } catch (Exception e) {
             log.warn("AI call failed, using raw fallback: {}", e.getMessage(), e);
+            aiUsageMetrics.recordOutcome(AiUsageMetrics.Outcome.FALLBACK_ERROR);
             return new PipelineResult(chatMapper.toResponse(rawFallback(relevant)), false);
         }
     }
@@ -217,7 +225,7 @@ public class ChatService {
     }
 
     private Answer callAi(Question question, String context, List<Message> history) {
-        String result = chatClient.prompt()
+        ChatResponse response = chatClient.prompt()
                 .system(SYSTEM_PROMPT)
                 .messages(history)
                 .user(u -> u.text("""
@@ -229,7 +237,14 @@ public class ChatService {
                         .param("context", context)
                         .param("question", question.text()))
                 .call()
-                .content();
-        return new Answer(result != null ? result : AI_EMPTY_RESPONSE);
+                .chatResponse();
+        if (response == null) return new Answer(AI_EMPTY_RESPONSE);
+        Generation generation = response.getResult();
+        if (generation == null) return new Answer(AI_EMPTY_RESPONSE);
+        AssistantMessage output = generation.getOutput();
+        if (output == null) return new Answer(AI_EMPTY_RESPONSE);
+        aiUsageMetrics.recordTokenUsage(response);
+        String text = output.getText();
+        return new Answer(text != null ? text : AI_EMPTY_RESPONSE);
     }
 }
