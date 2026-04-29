@@ -18,6 +18,7 @@ public class AiUsageMetrics {
 
     private static final Logger log = LoggerFactory.getLogger(AiUsageMetrics.class);
     private static final String UNKNOWN_MODEL = "unknown";
+    private static final String TAG_PROMPT_VERSION = "prompt_system_version";
 
     public enum Outcome { AI, FALLBACK_RATE_LIMIT, FALLBACK_ERROR }
 
@@ -30,12 +31,14 @@ public class AiUsageMetrics {
     private record TokenMeterKey(String model, TokenType type) {}
 
     private final MeterRegistry registry;
+    private final PromptCatalog promptCatalog;
     private final Map<TokenMeterKey, Counter> tokenCounters = new ConcurrentHashMap<>();
     private final Map<TokenMeterKey, DistributionSummary> tokenDistributions = new ConcurrentHashMap<>();
     private final Map<Outcome, Counter> outcomeCounters = new ConcurrentHashMap<>();
 
-    public AiUsageMetrics(MeterRegistry registry) {
+    public AiUsageMetrics(MeterRegistry registry, PromptCatalog promptCatalog) {
         this.registry = registry;
+        this.promptCatalog = promptCatalog;
     }
 
     public void recordTokenUsage(ChatResponse response) {
@@ -50,7 +53,9 @@ public class AiUsageMetrics {
         recordTokens(model, TokenType.PROMPT, prompt);
         recordTokens(model, TokenType.COMPLETION, completion);
         recordTokens(model, TokenType.TOTAL, total);
-        log.info("ai.usage model={} prompt={} completion={} total={}", model, prompt, completion, total);
+        PromptCatalog.Prompt sys = promptCatalog.systemPrompt();
+        log.info("ai.usage model={} prompt={} completion={} total={} prompt_system={}/{}",
+                model, prompt, completion, total, sys.version(), sys.hash());
     }
 
     private static int nz(Integer i) {
@@ -63,23 +68,29 @@ public class AiUsageMetrics {
 
     public void recordOutcome(Outcome outcome) {
         outcomeCounters.computeIfAbsent(outcome, o ->
-                Counter.builder("ai.requests").tag("outcome", o.name().toLowerCase()).register(registry)
+                Counter.builder("ai.requests")
+                        .tag("outcome", o.name().toLowerCase())
+                        .tag(TAG_PROMPT_VERSION, promptCatalog.systemPrompt().version())
+                        .register(registry)
         ).increment();
     }
 
     private void recordTokens(String model, TokenType type, int tokens) {
         if (tokens <= 0) return;
         TokenMeterKey key = new TokenMeterKey(model, type);
+        String promptVersion = promptCatalog.systemPrompt().version();
         tokenCounters.computeIfAbsent(key, k ->
                 Counter.builder("ai.tokens")
                         .tag("type", k.type.tag())
                         .tag("model", k.model)
+                        .tag(TAG_PROMPT_VERSION, promptVersion)
                         .register(registry)
         ).increment(tokens);
         tokenDistributions.computeIfAbsent(key, k ->
                 DistributionSummary.builder("ai.tokens.per_request")
                         .tag("type", k.type.tag())
                         .tag("model", k.model)
+                        .tag(TAG_PROMPT_VERSION, promptVersion)
                         .publishPercentiles(0.5, 0.95)
                         .register(registry)
         ).record(tokens);

@@ -19,6 +19,11 @@ repositories {
 }
 
 extra["springAiVersion"] = "2.0.0-M4"
+extra["resilience4jVersion"] = "2.3.0"
+extra["springdocVersion"] = "3.0.3"
+extra["springwolfVersion"] = "2.2.0"
+extra["mapstructVersion"] = "1.6.3"
+extra["testcontainersBomVersion"] = "1.20.4"
 
 dependencies {
     implementation("org.springframework.boot:spring-boot-starter-webmvc")
@@ -29,24 +34,24 @@ dependencies {
     implementation("org.springframework.boot:spring-boot-starter-actuator")
     implementation("org.springframework.boot:spring-boot-starter-security")
     runtimeOnly("io.micrometer:micrometer-registry-prometheus")
-    implementation("org.springdoc:springdoc-openapi-starter-webmvc-ui:3.0.3")
-    implementation("io.github.springwolf:springwolf-stomp:2.2.0")
-    implementation("io.github.springwolf:springwolf-ui:2.2.0")
+    implementation("org.springdoc:springdoc-openapi-starter-webmvc-ui")
+    implementation("io.github.springwolf:springwolf-stomp:${property("springwolfVersion")}")
+    implementation("io.github.springwolf:springwolf-ui:${property("springwolfVersion")}")
     implementation("org.apache.commons:commons-pool2")
     implementation("org.springframework.boot:spring-boot-starter-liquibase")
     implementation("org.springframework.ai:spring-ai-starter-model-google-genai")
     implementation("org.springframework.ai:spring-ai-starter-vector-store-pgvector")
     implementation("org.springframework.ai:spring-ai-pdf-document-reader")
     implementation("org.springframework.ai:spring-ai-transformers")
-    implementation("io.github.resilience4j:resilience4j-ratelimiter:2.3.0")
-    implementation("io.github.resilience4j:resilience4j-bulkhead:2.3.0")
-    implementation("org.mapstruct:mapstruct:1.6.3")
-    annotationProcessor("org.mapstruct:mapstruct-processor:1.6.3")
+    implementation("io.github.resilience4j:resilience4j-ratelimiter")
+    implementation("io.github.resilience4j:resilience4j-bulkhead")
+    implementation("org.mapstruct:mapstruct:${property("mapstructVersion")}")
+    annotationProcessor("org.mapstruct:mapstruct-processor:${property("mapstructVersion")}")
     runtimeOnly("org.postgresql:postgresql")
 
     testImplementation("org.springframework.boot:spring-boot-starter-webmvc-test")
     testImplementation("org.springframework.boot:spring-boot-testcontainers")
-    testImplementation(platform("org.testcontainers:testcontainers-bom:1.20.4"))
+    testImplementation(platform("org.testcontainers:testcontainers-bom:${property("testcontainersBomVersion")}"))
     testImplementation("org.testcontainers:postgresql")
     testImplementation("org.testcontainers:junit-jupiter")
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
@@ -55,6 +60,8 @@ dependencies {
 dependencyManagement {
     imports {
         mavenBom("org.springframework.ai:spring-ai-bom:${property("springAiVersion")}")
+        mavenBom("io.github.resilience4j:resilience4j-bom:${property("resilience4jVersion")}")
+        mavenBom("org.springdoc:springdoc-openapi-bom:${property("springdocVersion")}")
     }
 }
 

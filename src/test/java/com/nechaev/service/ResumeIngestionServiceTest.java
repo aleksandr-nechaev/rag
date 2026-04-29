@@ -46,7 +46,7 @@ class ResumeIngestionServiceTest {
         when(transactionManager.getTransaction(any())).thenReturn(mock(TransactionStatus.class));
 
         AppProperties.Ingestion ingestion = new AppProperties.Ingestion(RESUME_PATH);
-        AppProperties appProperties = new AppProperties(null, null, null, ingestion, null);
+        AppProperties appProperties = new AppProperties(null, null, null, ingestion, null, null);
         service = new ResumeIngestionService(vectorStore, jdbcTemplate, transactionManager, appProperties);
 
         try (InputStream is = new ClassPathResource(RESUME_PATH).getInputStream()) {

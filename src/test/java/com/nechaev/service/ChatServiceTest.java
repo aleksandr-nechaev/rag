@@ -63,6 +63,7 @@ class ChatServiceTest {
 
     ChatService chatService;
     AiUsageMetrics aiUsageMetrics;
+    @Mock PromptCatalog promptCatalog;
 
     static final QuestionRequest REQUEST  = new QuestionRequest("What is your experience?");
     static final Question        QUESTION = new Question("What is your experience?");
@@ -73,9 +74,11 @@ class ChatServiceTest {
         when(appProperties.rag()).thenReturn(rag);
         when(redisTemplate.opsForValue()).thenReturn(valueOperations);
         when(valueOperations.get(anyString())).thenReturn(null);
-        aiUsageMetrics = new AiUsageMetrics(new SimpleMeterRegistry());
+        when(promptCatalog.systemPrompt()).thenReturn(
+                new PromptCatalog.Prompt("test system prompt", "v1", "abcd1234"));
+        aiUsageMetrics = new AiUsageMetrics(new SimpleMeterRegistry(), promptCatalog);
         chatService = new ChatService(chatClientBuilder, vectorStore, ragPipelineBulkhead,
-                aiRateLimiter, chatMapper, redisTemplate, objectMapper, aiUsageMetrics, appProperties);
+                aiRateLimiter, chatMapper, redisTemplate, objectMapper, aiUsageMetrics, promptCatalog, appProperties);
         when(chatMapper.toQuestion(REQUEST)).thenReturn(QUESTION);
     }
 

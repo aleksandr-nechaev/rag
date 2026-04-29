@@ -7,7 +7,7 @@ spring:
   security:
     user:
       name: ${ADMIN_USER:admin}
-      password: ${ADMIN_PASSWORD}
+      password: ${ADMIN_PASSWORD:superSecretPassword}
       roles: ADMIN
   data:
     redis:
@@ -87,6 +87,8 @@ app:
     top-k: 3
     max-history: 20
     session-ttl: 1h
+  prompts:
+    system-version: v1
   protection:
     ai:
       limit-for-period: 15
