@@ -57,6 +57,7 @@ public class ChatService {
     private final ObjectMapper objectMapper;
     private final AiUsageMetrics aiUsageMetrics;
     private final PromptCatalog promptCatalog;
+    private final PiiRedactor piiRedactor;
     private final int topK;
     private final int maxHistory;
     private final Duration sessionTtl;
@@ -79,6 +80,7 @@ public class ChatService {
                        ObjectMapper objectMapper,
                        AiUsageMetrics aiUsageMetrics,
                        PromptCatalog promptCatalog,
+                       PiiRedactor piiRedactor,
                        AppProperties appProperties) {
         this.chatClient = chatClientBuilder.build();
         this.vectorStore = vectorStore;
@@ -89,6 +91,7 @@ public class ChatService {
         this.objectMapper = objectMapper;
         this.aiUsageMetrics = aiUsageMetrics;
         this.promptCatalog = promptCatalog;
+        this.piiRedactor = piiRedactor;
         this.topK = appProperties.rag().topK();
         this.maxHistory = appProperties.rag().maxHistory();
         this.sessionTtl = appProperties.rag().sessionTtl();
@@ -216,8 +219,8 @@ public class ChatService {
         if (relevant.isEmpty()) {
             return new Answer(AI_UNAVAILABLE_NO_CONTEXT);
         }
-        return new Answer(AI_UNAVAILABLE_WITH_CONTEXT
-                + relevant.stream().map(Document::getText).collect(Collectors.joining("\n\n---\n\n")));
+        String chunks = relevant.stream().map(Document::getText).collect(Collectors.joining("\n\n---\n\n"));
+        return new Answer(AI_UNAVAILABLE_WITH_CONTEXT + piiRedactor.redact(chunks));
     }
 
     private Answer callAi(Question question, String context, List<Message> history) {
@@ -240,7 +243,7 @@ public class ChatService {
         AssistantMessage output = generation.getOutput();
         if (output == null) return new Answer(AI_EMPTY_RESPONSE);
         aiUsageMetrics.recordTokenUsage(response);
-        String text = output.getText();
+        String text = piiRedactor.redact(output.getText());
         return new Answer(text != null ? text : AI_EMPTY_RESPONSE);
     }
 }

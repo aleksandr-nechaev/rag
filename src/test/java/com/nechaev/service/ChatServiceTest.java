@@ -64,6 +64,7 @@ class ChatServiceTest {
     ChatService chatService;
     AiUsageMetrics aiUsageMetrics;
     @Mock PromptCatalog promptCatalog;
+    @Mock PiiRedactor piiRedactor;
 
     static final QuestionRequest REQUEST  = new QuestionRequest("What is your experience?");
     static final Question        QUESTION = new Question("What is your experience?");
@@ -76,9 +77,11 @@ class ChatServiceTest {
         when(valueOperations.get(anyString())).thenReturn(null);
         when(promptCatalog.systemPrompt()).thenReturn(
                 new PromptCatalog.Prompt("test system prompt", "v1", "abcd1234"));
+        when(piiRedactor.redact(anyString())).thenAnswer(inv -> inv.getArgument(0));
         aiUsageMetrics = new AiUsageMetrics(new SimpleMeterRegistry(), promptCatalog);
         chatService = new ChatService(chatClientBuilder, vectorStore, ragPipelineBulkhead,
-                aiRateLimiter, chatMapper, redisTemplate, objectMapper, aiUsageMetrics, promptCatalog, appProperties);
+                aiRateLimiter, chatMapper, redisTemplate, objectMapper, aiUsageMetrics,
+                promptCatalog, piiRedactor, appProperties);
         when(chatMapper.toQuestion(REQUEST)).thenReturn(QUESTION);
     }
 

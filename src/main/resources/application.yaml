@@ -88,7 +88,7 @@ app:
     max-history: 20
     session-ttl: 1h
   prompts:
-    system-version: v1
+    system-version: v2
   protection:
     ai:
       limit-for-period: 15
