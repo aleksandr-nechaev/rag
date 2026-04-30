@@ -38,7 +38,9 @@ spring:
           timeout: 30s
         chat:
           options:
-            model: gemini-2.5-flash-lite
+            # Default for the auto-configured ChatClient. Overridden per-call by ChatService
+            # via .options(...) — we always pass either app.models.primary or app.models.fallback.
+            model: ${app.models.primary}
     vectorstore:
       pgvector:
         initialize-schema: false
@@ -89,9 +91,15 @@ app:
     session-ttl: 1h
   prompts:
     system-version: v2
+  models:
+    primary: gemini-2.5-flash
+    fallback: gemini-2.5-flash-lite
   protection:
     ai:
-      limit-for-period: 15
+      # Sized for the model fallback chain: primary (gemini-2.5-flash) gives 10 RPM on free tier,
+      # fallback (gemini-2.5-flash-lite) gives 15 RPM. With both buckets summed we have headroom
+      # up to 25 user requests/min before either bucket exhausts.
+      limit-for-period: 25
       limit-refresh-period: 1m
       timeout-duration: 0s
     rag-pipeline:

@@ -18,6 +18,7 @@ import org.springframework.ai.chat.messages.Message;
 import org.springframework.ai.chat.messages.UserMessage;
 import org.springframework.ai.chat.model.ChatResponse;
 import org.springframework.ai.chat.model.Generation;
+import org.springframework.ai.chat.prompt.ChatOptions;
 import org.springframework.ai.document.Document;
 import org.springframework.ai.vectorstore.SearchRequest;
 import org.springframework.ai.vectorstore.VectorStore;
@@ -32,6 +33,11 @@ import java.time.Duration;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.stream.Collectors;
+
+import static com.nechaev.service.AiUsageMetrics.Outcome.AI;
+import static com.nechaev.service.AiUsageMetrics.Outcome.AI_FALLBACK_MODEL;
+import static com.nechaev.service.AiUsageMetrics.Outcome.FALLBACK_ERROR;
+import static com.nechaev.service.AiUsageMetrics.Outcome.FALLBACK_RATE_LIMIT;
 
 @Service
 public class ChatService {
@@ -58,6 +64,8 @@ public class ChatService {
     private final AiUsageMetrics aiUsageMetrics;
     private final PromptCatalog promptCatalog;
     private final PiiRedactor piiRedactor;
+    private final String primaryModel;
+    private final String fallbackModel;
     private final int topK;
     private final int maxHistory;
     private final Duration sessionTtl;
@@ -92,6 +100,8 @@ public class ChatService {
         this.aiUsageMetrics = aiUsageMetrics;
         this.promptCatalog = promptCatalog;
         this.piiRedactor = piiRedactor;
+        this.primaryModel = appProperties.models().primary();
+        this.fallbackModel = appProperties.models().fallback();
         this.topK = appProperties.rag().topK();
         this.maxHistory = appProperties.rag().maxHistory();
         this.sessionTtl = appProperties.rag().sessionTtl();
@@ -196,7 +206,7 @@ public class ChatService {
     private PipelineResult callAiOrFallback(Question question, List<Document> relevant, List<Message> history) {
         if (!aiRateLimiter.acquirePermission()) {
             log.info("AI rate limit reached, using raw fallback for question.");
-            aiUsageMetrics.recordOutcome(AiUsageMetrics.Outcome.FALLBACK_RATE_LIMIT);
+            aiUsageMetrics.recordOutcome(FALLBACK_RATE_LIMIT);
             return new PipelineResult(chatMapper.toResponse(rawFallback(relevant)), false);
         }
         String context = relevant.stream()
@@ -204,14 +214,28 @@ public class ChatService {
                 .collect(Collectors.joining("\n---\n"));
         log.debug("Calling AI with {} relevant chunks (question length: {} chars).",
                 relevant.size(), question.text().length());
+        // Single rate-limit permit covers both attempts: one user-request = one slot, regardless
+        // of how many models we fall through. Tracks cost on our side, not Google's per-model quota.
         try {
-            Answer answer = callAi(question, context, history);
-            aiUsageMetrics.recordOutcome(AiUsageMetrics.Outcome.AI);
+            Answer answer = callAi(question, context, history, primaryModel);
+            aiUsageMetrics.recordOutcome(AI);
             return new PipelineResult(chatMapper.toResponse(answer), true);
-        } catch (Exception e) {
-            log.warn("AI call failed, using raw fallback: {}", e.getMessage(), e);
-            aiUsageMetrics.recordOutcome(AiUsageMetrics.Outcome.FALLBACK_ERROR);
-            return new PipelineResult(chatMapper.toResponse(rawFallback(relevant)), false);
+        } catch (Exception primaryError) {
+            // INFO, not WARN: with limit-for-period sized above primary's RPM, fallback firing is
+            // expected steady-state behaviour, not an alert condition. WARN is reserved for the
+            // case below where both models fail.
+            log.info("Primary model '{}' failed, attempting fallback '{}': {}",
+                    primaryModel, fallbackModel, primaryError.getMessage());
+            try {
+                Answer answer = callAi(question, context, history, fallbackModel);
+                aiUsageMetrics.recordOutcome(AI_FALLBACK_MODEL);
+                return new PipelineResult(chatMapper.toResponse(answer), true);
+            } catch (Exception fallbackError) {
+                log.warn("Fallback model '{}' also failed, using raw fallback: {}",
+                        fallbackModel, fallbackError.getMessage(), fallbackError);
+                aiUsageMetrics.recordOutcome(FALLBACK_ERROR);
+                return new PipelineResult(chatMapper.toResponse(rawFallback(relevant)), false);
+            }
         }
     }
 
@@ -223,7 +247,7 @@ public class ChatService {
         return new Answer(AI_UNAVAILABLE_WITH_CONTEXT + piiRedactor.redact(chunks));
     }
 
-    private Answer callAi(Question question, String context, List<Message> history) {
+    private Answer callAi(Question question, String context, List<Message> history, String model) {
         ChatResponse response = chatClient.prompt()
                 .system(promptCatalog.systemPrompt().text())
                 .messages(history)
@@ -235,6 +259,7 @@ public class ChatService {
                         """)
                         .param("context", context)
                         .param("question", question.text()))
+                .options(ChatOptions.builder().model(model).build())
                 .call()
                 .chatResponse();
         if (response == null) return new Answer(AI_EMPTY_RESPONSE);

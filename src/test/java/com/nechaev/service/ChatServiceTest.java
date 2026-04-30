@@ -72,7 +72,9 @@ class ChatServiceTest {
     @BeforeEach
     void setUp() {
         AppProperties.Rag rag = new AppProperties.Rag(3, 20, Duration.ofHours(1));
+        AppProperties.Models models = new AppProperties.Models("primary-model", "fallback-model");
         when(appProperties.rag()).thenReturn(rag);
+        when(appProperties.models()).thenReturn(models);
         when(redisTemplate.opsForValue()).thenReturn(valueOperations);
         when(valueOperations.get(anyString())).thenReturn(null);
         when(promptCatalog.systemPrompt()).thenReturn(
@@ -128,6 +130,7 @@ class ChatServiceTest {
                 .system(anyString())
                 .messages(ArgumentMatchers.<List<Message>>any())
                 .user(ArgumentMatchers.<Consumer<ChatClient.PromptUserSpec>>any())
+                .options(any(org.springframework.ai.chat.prompt.ChatOptions.class))
                 .call().chatResponse())
                 .thenReturn(stubChatResponse("Aleksandr has 5 years of Java experience."));
         AnswerResponse expected = new AnswerResponse("Aleksandr has 5 years of Java experience.");
@@ -139,7 +142,7 @@ class ChatServiceTest {
     }
 
     @Test
-    void answerAiCallFailsReturnsRawFallback() {
+    void answerBothModelsFailReturnsRawFallback() {
         when(ragPipelineBulkhead.tryAcquirePermission()).thenReturn(true);
         when(vectorStore.similaritySearch(any(org.springframework.ai.vectorstore.SearchRequest.class))).thenReturn(List.of(new Document("context")));
         when(aiRateLimiter.acquirePermission()).thenReturn(true);
@@ -147,6 +150,7 @@ class ChatServiceTest {
                 .system(anyString())
                 .messages(ArgumentMatchers.<List<Message>>any())
                 .user(ArgumentMatchers.<Consumer<ChatClient.PromptUserSpec>>any())
+                .options(any(org.springframework.ai.chat.prompt.ChatOptions.class))
                 .call().chatResponse())
                 .thenThrow(new RuntimeException("AI unavailable"));
         when(chatMapper.toResponse(any())).thenAnswer(inv ->
@@ -156,6 +160,27 @@ class ChatServiceTest {
 
         assertThat(result.answer()).contains("AI is currently unavailable");
         verify(ragPipelineBulkhead).onComplete();
+    }
+
+    @Test
+    void answerPrimaryFailsFallbackSucceedsReturnsAiAnswer() {
+        when(ragPipelineBulkhead.tryAcquirePermission()).thenReturn(true);
+        when(vectorStore.similaritySearch(any(org.springframework.ai.vectorstore.SearchRequest.class))).thenReturn(List.of(new Document("context")));
+        when(aiRateLimiter.acquirePermission()).thenReturn(true);
+        when(chatClientBuilder.build().prompt()
+                .system(anyString())
+                .messages(ArgumentMatchers.<List<Message>>any())
+                .user(ArgumentMatchers.<Consumer<ChatClient.PromptUserSpec>>any())
+                .options(any(org.springframework.ai.chat.prompt.ChatOptions.class))
+                .call().chatResponse())
+                .thenThrow(new RuntimeException("primary model down"))
+                .thenReturn(stubChatResponse("Fallback model answer."));
+        AnswerResponse expected = new AnswerResponse("Fallback model answer.");
+        when(chatMapper.toResponse(any())).thenReturn(expected);
+
+        AnswerResponse result = chatService.answer(REQUEST);
+
+        assertThat(result).isEqualTo(expected);
     }
 
     @Test
@@ -192,6 +217,7 @@ class ChatServiceTest {
                 .system(anyString())
                 .messages(ArgumentMatchers.<List<Message>>any())
                 .user(ArgumentMatchers.<Consumer<ChatClient.PromptUserSpec>>any())
+                .options(any(org.springframework.ai.chat.prompt.ChatOptions.class))
                 .call().chatResponse())
                 .thenReturn(stubChatResponse("AI answer."));
         when(chatMapper.toResponse(any())).thenAnswer(inv ->
@@ -229,6 +255,7 @@ class ChatServiceTest {
                 .system(anyString())
                 .messages(ArgumentMatchers.<List<Message>>any())
                 .user(ArgumentMatchers.<Consumer<ChatClient.PromptUserSpec>>any())
+                .options(any(org.springframework.ai.chat.prompt.ChatOptions.class))
                 .call().chatResponse())
                 .thenReturn(stubChatResponse("AI answer."));
         when(chatMapper.toResponse(any())).thenAnswer(inv ->
@@ -253,6 +280,7 @@ class ChatServiceTest {
                 .system(anyString())
                 .messages(ArgumentMatchers.<List<Message>>any())
                 .user(ArgumentMatchers.<Consumer<ChatClient.PromptUserSpec>>any())
+                .options(any(org.springframework.ai.chat.prompt.ChatOptions.class))
                 .call().chatResponse())
                 .thenReturn(stubChatResponse("AI answer."));
         when(chatMapper.toResponse(any())).thenAnswer(inv ->

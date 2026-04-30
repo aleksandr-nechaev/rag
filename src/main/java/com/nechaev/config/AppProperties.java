@@ -6,7 +6,7 @@ import java.time.Duration;
 import java.util.List;
 
 @ConfigurationProperties(prefix = "app")
-public record AppProperties(Cache cache, Protection protection, List<String> allowedOrigins, Ingestion ingestion, Rag rag, Prompts prompts) {
+public record AppProperties(Cache cache, Protection protection, List<String> allowedOrigins, Ingestion ingestion, Rag rag, Prompts prompts, Models models) {
 
     public record Cache(Duration answerTtl) {}
 
@@ -22,4 +22,8 @@ public record AppProperties(Cache cache, Protection protection, List<String> all
     public record Rag(int topK, int maxHistory, Duration sessionTtl) {}
 
     public record Prompts(String systemVersion) {}
+
+    // Primary model is tried first; on any RuntimeException, the fallback is attempted.
+    // If both fail, the raw resume chunks are returned.
+    public record Models(String primary, String fallback) {}
 }

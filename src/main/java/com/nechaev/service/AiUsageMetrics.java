@@ -20,7 +20,7 @@ public class AiUsageMetrics {
     private static final String UNKNOWN_MODEL = "unknown";
     private static final String TAG_PROMPT_VERSION = "prompt_system_version";
 
-    public enum Outcome { AI, FALLBACK_RATE_LIMIT, FALLBACK_ERROR }
+    public enum Outcome { AI, AI_FALLBACK_MODEL, FALLBACK_RATE_LIMIT, FALLBACK_ERROR }
 
     public enum TokenType {
         PROMPT, COMPLETION, TOTAL;
