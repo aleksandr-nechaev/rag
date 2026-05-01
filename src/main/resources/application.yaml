@@ -105,3 +105,14 @@ app:
     rag-pipeline:
       max-concurrent-calls: 5   # must equal spring.datasource.hikari.maximum-pool-size
       max-wait-duration: 0ms
+    per-ip-rate-limit:
+      # Per-client-IP cap on requests to /api/v1/** and /ws/** (SockJS handshake).
+      # Distributed via Redis — same counter across all instances.
+      limit-for-period: 60
+      limit-refresh-period: 1m
+      # true: read first IP from X-Forwarded-For (behind trusted proxy like ALB/CloudFront).
+      # false: use request.getRemoteAddr() (safer for direct exposure).
+      trusted-proxy: false
+      # true: allow request when Redis is unreachable (preserve availability).
+      # false: deny on Redis outage (strict).
+      fail-open: true

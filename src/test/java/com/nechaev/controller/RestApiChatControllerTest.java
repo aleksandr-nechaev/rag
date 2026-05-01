@@ -1,7 +1,11 @@
 package com.nechaev.controller;
 
+import com.nechaev.config.AppProperties;
 import com.nechaev.dto.AnswerResponse;
 import com.nechaev.service.ChatService;
+import com.nechaev.service.RedisRateLimiter;
+import io.micrometer.core.instrument.MeterRegistry;
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import io.github.resilience4j.bulkhead.Bulkhead;
 import io.github.resilience4j.bulkhead.BulkheadConfig;
 import io.github.resilience4j.bulkhead.BulkheadFullException;
@@ -9,9 +13,13 @@ import io.github.resilience4j.ratelimiter.RateLimiter;
 import io.github.resilience4j.ratelimiter.RateLimiterConfig;
 import io.github.resilience4j.ratelimiter.RequestNotPermitted;
 import com.nechaev.exception.ApiExceptionHandler;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
@@ -23,11 +31,24 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @WebMvcTest(controllers = {RestApiChatController.class, ApiExceptionHandler.class})
+@EnableConfigurationProperties(AppProperties.class)
+@Import(RestApiChatControllerTest.MeterRegistryConfig.class)
 class RestApiChatControllerTest {
+
+    static class MeterRegistryConfig {
+        @Bean MeterRegistry meterRegistry() { return new SimpleMeterRegistry(); }
+    }
 
     @Autowired MockMvc mockMvc;
 
     @MockitoBean ChatService chatService;
+    // Filter @Component is auto-loaded by @WebMvcTest; mock its Redis dep to always allow.
+    @MockitoBean RedisRateLimiter redisRateLimiter;
+
+    @BeforeEach
+    void allowRateLimiter() {
+        when(redisRateLimiter.tryAcquire(org.mockito.ArgumentMatchers.anyString())).thenReturn(true);
+    }
 
     @Test
     void askValidRequestReturns200WithAnswer() throws Exception {
