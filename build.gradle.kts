@@ -74,6 +74,14 @@ tasks.named<org.springframework.boot.gradle.tasks.run.BootRun>("bootRun") {
     jvmArgs("--enable-native-access=ALL-UNNAMED")
 }
 
+// Enable native access via JAR manifest (JEP 472, Java 22+). Removes the need for
+// --enable-native-access on the command line for `java -jar app.jar` (Docker, prod).
+tasks.bootJar {
+    manifest {
+        attributes("Enable-Native-Access" to "ALL-UNNAMED")
+    }
+}
+
 tasks.withType<JavaCompile> {
     options.compilerArgs.add("-Xlint:deprecation")
 }
