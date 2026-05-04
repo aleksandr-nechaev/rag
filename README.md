@@ -36,20 +36,16 @@ Behaviour notes:
 
 ## Requirements
 
-- Java 25
-- Docker (to launch PostgreSQL + Redis)
-
-Start infrastructure:
-
-```bash
-docker compose up -d
-```
+- Docker (for the all-in-one path)
+- Or Java 25 + Docker (for local development against containerised infra)
 
 ## Environment Variables
 
 | Variable           | Default     | Description                        |
 |--------------------|-------------|------------------------------------|
 | `GOOGLE_AI_API_KEY`| —           | Google AI Studio API key (required)|
+| `ADMIN_USER`       | `admin`     | Admin basic-auth username          |
+| `ADMIN_PASSWORD`   | `dev-only`  | Admin basic-auth password (override in any non-dev environment) |
 | `DB_HOST`          | `localhost` | PostgreSQL host                    |
 | `DB_PORT`          | `5432`      | PostgreSQL port                    |
 | `DB_NAME`          | `postgres`  | Database name                      |
@@ -64,7 +60,23 @@ Get a free Google AI Studio API key at [aistudio.google.com/apikey](https://aist
 
 ## Run
 
+### All-in-one (Docker Compose)
+
+Builds the app image from the local `Dockerfile` and starts PostgreSQL + Redis + app:
+
 ```bash
+export GOOGLE_AI_API_KEY=your_key_here
+docker compose up -d --build
+```
+
+The app runs as non-root user `app` (uid 10001) inside a layered image (`lib/` + thin JAR for cache reuse). Stop with `docker compose down`.
+
+### Local development (gradle + containerised infra)
+
+Run app from the IDE / `bootRun`, with infrastructure in containers:
+
+```bash
+docker compose up -d postgres redis
 export GOOGLE_AI_API_KEY=your_key_here
 ./gradlew bootRun
 ```
@@ -113,9 +125,9 @@ Once the app is running:
 | [`/actuator/metrics/ai.tokens`](http://localhost:8080/actuator/metrics/ai.tokens) | Gemini token usage counters (Micrometer)            |
 | [`/actuator/prometheus`](http://localhost:8080/actuator/prometheus) | All metrics in Prometheus exposition format         |
 
-These admin endpoints require **HTTP basic auth** (role `ADMIN`). Default username is `admin`; password is auto-generated on each startup and printed to the console (`Using generated security password: ...`). Override via env var `SPRING_SECURITY_USER_PASSWORD` (and `ADMIN_USER` for the username) before deploying. Public endpoints (`/`, `/ws/**`, `/api/v1/**`) remain unauthenticated.
+These admin endpoints require **HTTP basic auth** (role `ADMIN`). Default credentials: `admin` / `dev-only` — override via `ADMIN_USER` and `ADMIN_PASSWORD` env vars in any environment that isn't a developer workstation. Public endpoints (`/`, `/ws/**`, `/api/v1/**`) remain unauthenticated.
 
-For **production deploys**, run with `SPRING_PROFILES_ACTIVE=prod`. The `prod` profile activates a startup check that fails fast if `SPRING_SECURITY_USER_PASSWORD` is not set, preventing the auto-generated password from leaking through stdout/log collection.
+For **production deploys**, run with `SPRING_PROFILES_ACTIVE=prod`. The `prod` profile activates a startup check that fails fast if `ADMIN_PASSWORD` is unset, blank, or still using the `dev-only` default — forcing real credentials before the app accepts traffic.
 
 ## Build & Test
 

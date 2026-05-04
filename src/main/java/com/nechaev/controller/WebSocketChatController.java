@@ -3,6 +3,7 @@ package com.nechaev.controller;
 import com.nechaev.dto.AnswerResponse;
 import com.nechaev.dto.QuestionRequest;
 import com.nechaev.service.ChatService;
+import com.nechaev.util.LogUtils;
 import io.github.resilience4j.bulkhead.BulkheadFullException;
 import io.github.resilience4j.ratelimiter.RequestNotPermitted;
 import jakarta.validation.Valid;
@@ -26,7 +27,6 @@ public class WebSocketChatController {
 
     private static final Logger log = LoggerFactory.getLogger(WebSocketChatController.class);
     private static final String REPLY_DESTINATION = "/queue/v1/answers";
-    private static final int SESSION_ID_LOG_PREFIX_LEN = 8;
 
     private final ChatService chatService;
 
@@ -67,7 +67,7 @@ public class WebSocketChatController {
     @MessageExceptionHandler(Exception.class)
     @SendToUser(value = REPLY_DESTINATION, broadcast = false)
     public AnswerResponse handleUnexpected(Exception e, SimpMessageHeaderAccessor headerAccessor) {
-        log.error("WebSocket ask failed for session {}…", shortSessionId(headerAccessor.getSessionId()), e);
+        log.error("WebSocket ask failed for session {}…", LogUtils.shortId(headerAccessor.getSessionId()), e);
         return new AnswerResponse("Something went wrong. Please try again.");
     }
 
@@ -76,10 +76,5 @@ public class WebSocketChatController {
         String sessionId = event.getSessionId();
         if (sessionId == null) return;
         chatService.clearSession(sessionId);
-    }
-
-    private static String shortSessionId(String sessionId) {
-        if (sessionId == null) return "?";
-        return sessionId.substring(0, Math.min(SESSION_ID_LOG_PREFIX_LEN, sessionId.length()));
     }
 }

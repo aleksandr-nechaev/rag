@@ -7,7 +7,7 @@ spring:
   security:
     user:
       name: ${ADMIN_USER:admin}
-      password: ${ADMIN_PASSWORD:superSecretPassword}
+      password: ${ADMIN_PASSWORD:dev-only}
       roles: ADMIN
   data:
     redis:

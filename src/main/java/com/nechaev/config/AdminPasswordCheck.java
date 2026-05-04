@@ -11,10 +11,12 @@ import org.springframework.context.annotation.Profile;
 @Profile("prod")
 public class AdminPasswordCheck {
 
+    private static final String DEV_ONLY_PASSWORD = "dev-only";
+
     public AdminPasswordCheck(@Value("${spring.security.user.password:}") String password) {
-        if (password == null || password.isBlank()) {
+        if (password == null || password.isBlank() || DEV_ONLY_PASSWORD.equals(password)) {
             throw new IllegalStateException(
-                    "spring.security.user.password is not set while running with the 'prod' profile. "
+                    "spring.security.user.password is using the dev-only default while running with the 'prod' profile. "
                             + "Set the SPRING_SECURITY_USER_PASSWORD environment variable before starting the app.");
         }
     }

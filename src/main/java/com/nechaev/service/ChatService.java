@@ -7,6 +7,7 @@ import com.nechaev.dto.QuestionRequest;
 import com.nechaev.mapper.ChatMapper;
 import com.nechaev.model.Answer;
 import com.nechaev.model.Question;
+import com.nechaev.util.LogUtils;
 import io.github.resilience4j.bulkhead.Bulkhead;
 import io.github.resilience4j.bulkhead.BulkheadFullException;
 import io.github.resilience4j.ratelimiter.RateLimiter;
@@ -32,6 +33,7 @@ import tools.jackson.databind.ObjectMapper;
 import java.time.Duration;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 import static com.nechaev.service.AiUsageMetrics.Outcome.AI;
@@ -107,7 +109,7 @@ public class ChatService {
         this.sessionTtl = appProperties.rag().sessionTtl();
     }
 
-    @Cacheable(value = "answers", keyGenerator = "questionKeyGenerator")
+    @Cacheable(value = "answers", key = "#request.question().strip().toLowerCase()")
     public AnswerResponse answer(QuestionRequest request) {
         Question question = chatMapper.toQuestion(request);
         return executeRagPipeline(question, List.of()).response();
@@ -159,7 +161,7 @@ public class ChatService {
                     .collect(Collectors.toCollection(LinkedList::new));
         } catch (JacksonException | IllegalArgumentException e) {
             log.warn("Failed to deserialize session history for session {}…, starting fresh: {}",
-                    sessionId.substring(0, Math.min(8, sessionId.length())), e.getMessage());
+                    LogUtils.shortId(sessionId), e.getMessage());
             return new LinkedList<>();
         }
     }
@@ -186,7 +188,7 @@ public class ChatService {
             redisTemplate.opsForValue().set(SESSION_KEY_PREFIX + sessionId, json, sessionTtl);
         } catch (JacksonException e) {
             log.warn("Failed to serialize session history for session {}…: {}",
-                    sessionId.substring(0, Math.min(8, sessionId.length())), e.getMessage());
+                    LogUtils.shortId(sessionId), e.getMessage());
         }
     }
 
@@ -262,13 +264,14 @@ public class ChatService {
                 .options(ChatOptions.builder().model(model).build())
                 .call()
                 .chatResponse();
-        if (response == null) return new Answer(AI_EMPTY_RESPONSE);
-        Generation generation = response.getResult();
-        if (generation == null) return new Answer(AI_EMPTY_RESPONSE);
-        AssistantMessage output = generation.getOutput();
-        if (output == null) return new Answer(AI_EMPTY_RESPONSE);
         aiUsageMetrics.recordTokenUsage(response);
-        String text = piiRedactor.redact(output.getText());
-        return new Answer(text != null ? text : AI_EMPTY_RESPONSE);
+        String text = Optional.ofNullable(response)
+                .map(ChatResponse::getResult)
+                .map(Generation::getOutput)
+                .map(AssistantMessage::getText)
+                .map(piiRedactor::redact)
+                .filter(s -> !s.isEmpty())
+                .orElse(AI_EMPTY_RESPONSE);
+        return new Answer(text);
     }
 }
