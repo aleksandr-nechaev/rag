@@ -129,6 +129,29 @@ These admin endpoints require **HTTP basic auth** (role `ADMIN`). Default creden
 
 For **production deploys**, run with `SPRING_PROFILES_ACTIVE=prod`. The `prod` profile activates a startup check that fails fast if `ADMIN_PASSWORD` is unset, blank, or still using the `dev-only` default — forcing real credentials before the app accepts traffic.
 
+## Production Considerations
+
+### Horizontal scaling
+
+The app is stateless at the JVM level: chat history, answer cache, per-IP rate-limit counters, and HTTP sessions all live in Redis. Multiple instances behind a load balancer share the same view. Sticky sessions are required only for SockJS HTTP-fallback transports (long-poll, xhr-streaming) — pure WebSocket connections don't need them.
+
+### Redis as a single point of failure
+
+Redis is on the hot path for sessions, history, cache, and rate limiting. Application behaviour when Redis is unreachable:
+
+| Path | Behaviour |
+|---|---|
+| `POST /api/v1/ask` (cache) | falls through to the underlying call (`LoggingCacheErrorHandler` swallows Redis errors) |
+| `ChatService.loadHistory` / `saveHistory` | logs a warning, continues with empty history (history is not persisted but the request succeeds) |
+| WebSocket handshake (`HttpSession` create) | fails — clients reconnect after Redis recovery |
+| `PerIpRateLimitFilter` | configurable via `app.protection.per-ip-rate-limit.fail-open` (default `true` — pass requests through) |
+
+For production deploy, run **Redis in HA**: Sentinel for automatic failover (3+ nodes) or a managed offering (ElastiCache, Upstash) with multi-AZ replication. Lettuce (the default Spring client) supports Sentinel via `spring.data.redis.sentinel.*` properties out of the box.
+
+### Resource sizing
+
+Resilience4j rate limiter and bulkhead are **per-instance**. With N instances, the effective AI rate limit becomes `N × app.protection.ai.limit-for-period` — adjust the property accordingly to stay within Google's free-tier (10 + 15 RPM combined across the fallback chain), or move to a distributed limiter (e.g. `resilience4j-redis`, Bucket4j) for elastic scaling.
+
 ## Build & Test
 
 ```bash

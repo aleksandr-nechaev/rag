@@ -24,6 +24,7 @@ import org.springframework.ai.document.Document;
 import org.springframework.ai.vectorstore.SearchRequest;
 import org.springframework.ai.vectorstore.VectorStore;
 import org.springframework.cache.annotation.Cacheable;
+import org.springframework.dao.DataAccessException;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 import tools.jackson.core.JacksonException;
@@ -144,11 +145,23 @@ public class ChatService {
     }
 
     public void clearSession(String sessionId) {
-        redisTemplate.delete(SESSION_KEY_PREFIX + sessionId);
+        try {
+            redisTemplate.delete(SESSION_KEY_PREFIX + sessionId);
+        } catch (DataAccessException e) {
+            log.warn("Redis unavailable on session clear for session {}…: {}",
+                    LogUtils.shortId(sessionId), e.getMessage());
+        }
     }
 
     private LinkedList<Message> loadHistory(String sessionId) {
-        String json = redisTemplate.opsForValue().get(SESSION_KEY_PREFIX + sessionId);
+        String json;
+        try {
+            json = redisTemplate.opsForValue().get(SESSION_KEY_PREFIX + sessionId);
+        } catch (DataAccessException e) {
+            log.warn("Redis unavailable on history load for session {}…, starting fresh: {}",
+                    LogUtils.shortId(sessionId), e.getMessage());
+            return new LinkedList<>();
+        }
         if (json == null) return new LinkedList<>();
         try {
             List<MessageDto> dtos = objectMapper.readValue(json, MESSAGE_LIST_TYPE);
@@ -188,6 +201,9 @@ public class ChatService {
             redisTemplate.opsForValue().set(SESSION_KEY_PREFIX + sessionId, json, sessionTtl);
         } catch (JacksonException e) {
             log.warn("Failed to serialize session history for session {}…: {}",
+                    LogUtils.shortId(sessionId), e.getMessage());
+        } catch (DataAccessException e) {
+            log.warn("Redis unavailable on history save for session {}…, history not persisted: {}",
                     LogUtils.shortId(sessionId), e.getMessage());
         }
     }

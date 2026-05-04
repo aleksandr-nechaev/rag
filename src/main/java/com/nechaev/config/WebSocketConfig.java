@@ -11,15 +11,19 @@ import org.springframework.web.socket.config.annotation.WebSocketMessageBrokerCo
 public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
 
     private final AppProperties appProperties;
+    private final HttpSessionHandshakeInterceptor httpSessionHandshakeInterceptor;
 
-    public WebSocketConfig(AppProperties appProperties) {
+    public WebSocketConfig(AppProperties appProperties,
+                           HttpSessionHandshakeInterceptor httpSessionHandshakeInterceptor) {
         this.appProperties = appProperties;
+        this.httpSessionHandshakeInterceptor = httpSessionHandshakeInterceptor;
     }
 
     @Override
     public void registerStompEndpoints(StompEndpointRegistry registry) {
         registry.addEndpoint("/ws")
                 .setAllowedOrigins(appProperties.allowedOrigins().toArray(String[]::new))
+                .addInterceptors(httpSessionHandshakeInterceptor)
                 .withSockJS();
     }
 

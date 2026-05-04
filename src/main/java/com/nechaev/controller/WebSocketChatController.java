@@ -1,5 +1,6 @@
 package com.nechaev.controller;
 
+import com.nechaev.config.HttpSessionHandshakeInterceptor;
 import com.nechaev.dto.AnswerResponse;
 import com.nechaev.dto.QuestionRequest;
 import com.nechaev.service.ChatService;
@@ -9,7 +10,6 @@ import io.github.resilience4j.ratelimiter.RequestNotPermitted;
 import jakarta.validation.Valid;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.context.event.EventListener;
 import org.springframework.messaging.handler.annotation.MessageExceptionHandler;
 import org.springframework.messaging.handler.annotation.MessageMapping;
 import org.springframework.messaging.handler.annotation.Payload;
@@ -17,7 +17,6 @@ import org.springframework.messaging.simp.SimpMessageHeaderAccessor;
 import org.springframework.messaging.simp.annotation.SendToUser;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.MethodArgumentNotValidException;
-import org.springframework.web.socket.messaging.SessionDisconnectEvent;
 
 import java.util.stream.Collectors;
 
@@ -35,12 +34,15 @@ public class WebSocketChatController {
     }
 
     // broadcast = false routes to the originating session only (no Principal in this app).
+    // sessionId comes from the Spring-Session HttpSession bound at handshake (cookie-based,
+    // distributed via Redis) — survives reconnects and is the same on any instance behind LB.
     @MessageMapping("/v1/ask")
     @SendToUser(value = REPLY_DESTINATION, broadcast = false)
     public AnswerResponse ask(@Valid @Payload QuestionRequest request, SimpMessageHeaderAccessor headerAccessor) {
-        String sessionId = headerAccessor.getSessionId();
+        String sessionId = (String) headerAccessor.getSessionAttributes()
+                .get(HttpSessionHandshakeInterceptor.HTTP_SESSION_ID_ATTR);
         if (sessionId == null) {
-            log.warn("WebSocket ask received with no session, dropping.");
+            log.warn("WebSocket ask received with no HTTP session id, dropping.");
             return null; // null return: @SendToUser skips dispatch
         }
         return chatService.answerWithSession(sessionId, request);
@@ -67,14 +69,9 @@ public class WebSocketChatController {
     @MessageExceptionHandler(Exception.class)
     @SendToUser(value = REPLY_DESTINATION, broadcast = false)
     public AnswerResponse handleUnexpected(Exception e, SimpMessageHeaderAccessor headerAccessor) {
-        log.error("WebSocket ask failed for session {}…", LogUtils.shortId(headerAccessor.getSessionId()), e);
+        String sessionId = (String) headerAccessor.getSessionAttributes()
+                .get(HttpSessionHandshakeInterceptor.HTTP_SESSION_ID_ATTR);
+        log.error("WebSocket ask failed for session {}…", LogUtils.shortId(sessionId), e);
         return new AnswerResponse("Something went wrong. Please try again.");
-    }
-
-    @EventListener
-    public void onDisconnect(SessionDisconnectEvent event) {
-        String sessionId = event.getSessionId();
-        if (sessionId == null) return;
-        chatService.clearSession(sessionId);
     }
 }
