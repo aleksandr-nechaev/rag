@@ -12,15 +12,15 @@ A RAG (Retrieval-Augmented Generation) application that answers questions about 
 
 Configured under `app.models`:
 
-| Tier | Model | Free-tier RPM | Triggered when |
-|---|---|---|---|
-| Primary | `gemini-2.5-flash` | 10 | First attempt for every request |
-| Fallback | `gemini-2.5-flash-lite` | 15 | Primary throws any `RuntimeException` (rate limit, 5xx, timeout) |
-| Raw chunks | — | — | Both models throw, OR local rate limiter (`app.protection.ai.limit-for-period`) is exhausted |
+| Tier | Model                   | Free-tier RPM | Triggered when |
+|---|-------------------------|---------------|---|
+| Primary | `gemini-3.1-flash-lite` | 15            | First attempt for every request |
+| Fallback | `gemini-2.5-flash-lite` | 10            | Primary throws any `RuntimeException` (rate limit, 5xx, timeout) |
+| Raw chunks | —                       | —             | Both models throw, OR local rate limiter (`app.protection.ai.limit-for-period`) is exhausted |
 
 Behaviour notes:
 - Each user request consumes **exactly one** local rate-limiter permit, regardless of how many models are tried — fallback is "free" from our limiter's perspective.
-- Local limiter is sized at **25 RPM** to span the combined Google quota (10 flash + 15 flash-lite). At sustained 25 RPM, expect ~10 served by primary and ~15 by fallback.
+- Local limiter is sized at **25 RPM** to span the combined Google quota (15 gemini-3.1-flash-lite + 10 gemini-2.5-flash-lite). At sustained 25 RPM, expect ~15 served by primary and ~10 by fallback.
 - Outcomes are tagged in `ai.requests` Counter: `ai`, `ai_fallback_model`, `fallback_rate_limit`, `fallback_error`. Watch `ai_fallback_model` to gauge how often primary is degrading.
 - Models live in `app.models.{primary,fallback}`. Spring AI's default model (`spring.ai.google.genai.chat.options.model`) references `${app.models.primary}` so there's a single source of truth.
 

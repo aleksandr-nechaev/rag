@@ -92,12 +92,12 @@ app:
   prompts:
     system-version: v2
   models:
-    primary: gemini-2.5-flash
+    primary: gemini-3.1-flash-lite
     fallback: gemini-2.5-flash-lite
   protection:
     ai:
-      # Sized for the model fallback chain: primary (gemini-2.5-flash) gives 10 RPM on free tier,
-      # fallback (gemini-2.5-flash-lite) gives 15 RPM. With both buckets summed we have headroom
+      # Sized for the model fallback chain: primary (gemini-3.1-flash-lite) gives 15 RPM on free tier,
+      # fallback (gemini-2.5-flash-lite) gives 10 RPM. With both buckets summed we have headroom
       # up to 25 user requests/min before either bucket exhausts.
       limit-for-period: 25
       limit-refresh-period: 1m
