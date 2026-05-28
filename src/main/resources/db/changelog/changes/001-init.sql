@@ -12,8 +12,7 @@ CREATE TABLE vector_store (
     metadata  JSON,
     embedding VECTOR(384)
 );
-CREATE INDEX spring_ai_vector_index
-    ON vector_store USING hnsw (embedding vector_cosine_ops);
+CREATE INDEX spring_ai_vector_index ON vector_store USING hnsw (embedding vector_cosine_ops);
 --rollback DROP TABLE vector_store;
 
 --changeset nechaev:init-ingestion-state

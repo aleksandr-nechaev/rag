@@ -1,6 +1,9 @@
 package com.nechaev.service;
 
 import com.nechaev.config.AppProperties;
+import com.nechaev.model.IngestionState;
+import com.nechaev.repository.IngestionStateRepository;
+import com.nechaev.repository.VectorStoreRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.ai.document.Document;
@@ -9,7 +12,6 @@ import org.springframework.ai.vectorstore.VectorStore;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.core.io.ByteArrayResource;
 import org.springframework.core.io.ClassPathResource;
-import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.support.TransactionTemplate;
@@ -18,11 +20,11 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.HexFormat;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
@@ -37,51 +39,58 @@ public class ResumeIngestionService implements CommandLineRunner {
     private static final long ADVISORY_LOCK_ID = 7_654_321L;
 
     private static final Pattern SECTION_HEADER = Pattern.compile(
-            "(SUMMARY|SKILLS|WORK\\s+EXPERIENCE|EDUCATION|PROJECTS?|CERTIFICATIONS?|LANGUAGES?|INTERESTS?)\\s*",
+            "(SUMMARY|SKILLS|FEATURED\\s+PROJECTS?|WORK\\s+EXPERIENCE|EDUCATION|PROJECTS?|CERTIFICATIONS?|LANGUAGES?|INTERESTS?)\\s*",
             Pattern.CASE_INSENSITIVE
     );
     private static final Pattern NEWLINE = Pattern.compile("\\r?\\n");
     private static final Pattern WHITESPACE = Pattern.compile("\\s+");
 
     private final VectorStore vectorStore;
-    private final JdbcTemplate jdbcTemplate;
+    private final VectorStoreRepository vectorStoreRepository;
+    private final IngestionStateRepository ingestionStateRepository;
+    private final DistributedLockService lockService;
     private final TransactionTemplate transactionTemplate;
     private final String resumePath;
 
     public ResumeIngestionService(VectorStore vectorStore,
-                                  JdbcTemplate jdbcTemplate,
+                                  VectorStoreRepository vectorStoreRepository,
+                                  IngestionStateRepository ingestionStateRepository,
+                                  DistributedLockService lockService,
                                   PlatformTransactionManager transactionManager,
                                   AppProperties appProperties) {
         this.vectorStore = vectorStore;
-        this.jdbcTemplate = jdbcTemplate;
+        this.vectorStoreRepository = vectorStoreRepository;
+        this.ingestionStateRepository = ingestionStateRepository;
+        this.lockService = lockService;
         this.transactionTemplate = new TransactionTemplate(transactionManager);
         this.resumePath = appProperties.ingestion().resumePath();
     }
 
     @Override
     public void run(String... args) {
-        if (!tryAcquireLock()) {
+        boolean acquired = lockService.tryWithLock(ADVISORY_LOCK_ID, this::ingestIfChanged);
+        if (!acquired) {
             log.info("Another instance is ingesting the resume, skipping.");
+        }
+    }
+
+    private void ingestIfChanged() {
+        byte[] pdfBytes = readPdfBytes();
+        String currentHash = computeHash(pdfBytes);
+        boolean unchanged = ingestionStateRepository.findById(SOURCE)
+                .map(state -> state.getContentHash().equals(currentHash))
+                .orElse(false);
+        if (unchanged) {
+            log.info("Resume unchanged, skipping ingestion.");
             return;
         }
-        try {
-            byte[] pdfBytes = readPdfBytes();
-            String currentHash = computeHash(pdfBytes);
-            boolean unchanged = storedHash().map(currentHash::equals).orElse(false);
-            if (unchanged) {
-                log.info("Resume unchanged, skipping ingestion.");
-                return;
-            }
-            transactionTemplate.executeWithoutResult(status -> ingest(pdfBytes, currentHash));
-        } finally {
-            releaseLock();
-        }
+        transactionTemplate.executeWithoutResult(status -> ingest(pdfBytes, currentHash));
     }
 
     private void ingest(byte[] pdfBytes, String hash) {
         log.info("Ingesting resume (hash: {}).", hash);
 
-        jdbcTemplate.update("DELETE FROM vector_store WHERE metadata->>'source' = ?", SOURCE);
+        vectorStoreRepository.deleteBySource(SOURCE);
 
         String fullText = new PagePdfDocumentReader(new ByteArrayResource(pdfBytes))
                 .get().stream()
@@ -91,34 +100,9 @@ public class ResumeIngestionService implements CommandLineRunner {
         List<Document> chunks = splitBySections(fullText);
         vectorStore.add(chunks);
 
-        jdbcTemplate.update("""
-                INSERT INTO ingestion_state (source, content_hash)
-                VALUES (?, ?)
-                ON CONFLICT (source) DO UPDATE
-                    SET content_hash = EXCLUDED.content_hash,
-                        ingested_at  = now()
-                """, SOURCE, hash);
+        ingestionStateRepository.save(new IngestionState(SOURCE, hash, Instant.now()));
 
         log.info("Ingested {} sections from resume.", chunks.size());
-    }
-
-    private Optional<String> storedHash() {
-        List<String> rows = jdbcTemplate.queryForList(
-                "SELECT content_hash FROM ingestion_state WHERE source = ?", String.class, SOURCE);
-        return rows.isEmpty() ? Optional.empty() : Optional.of(rows.get(0));
-    }
-
-    private boolean tryAcquireLock() {
-        return Boolean.TRUE.equals(jdbcTemplate.queryForObject(
-                "SELECT pg_try_advisory_lock(?)", Boolean.class, ADVISORY_LOCK_ID));
-    }
-
-    private void releaseLock() {
-        Boolean released = jdbcTemplate.queryForObject(
-                "SELECT pg_advisory_unlock(?)", Boolean.class, ADVISORY_LOCK_ID);
-        if (!Boolean.TRUE.equals(released)) {
-            log.warn("Advisory lock {} was not held at unlock time.", ADVISORY_LOCK_ID);
-        }
     }
 
     private byte[] readPdfBytes() {

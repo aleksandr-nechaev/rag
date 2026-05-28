@@ -1,28 +1,30 @@
 package com.nechaev.service;
 
 import com.nechaev.config.AppProperties;
+import com.nechaev.model.IngestionState;
+import com.nechaev.repository.IngestionStateRepository;
+import com.nechaev.repository.VectorStoreRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.mockito.junit.jupiter.MockitoSettings;
 import org.mockito.quality.Strictness;
 import org.springframework.ai.vectorstore.VectorStore;
 import org.springframework.core.io.ClassPathResource;
-import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.TransactionStatus;
 
 import java.io.InputStream;
 import java.security.MessageDigest;
 import java.util.HexFormat;
-import java.util.List;
+import java.util.Optional;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
-import static org.mockito.ArgumentMatchers.anyString;
-import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -33,7 +35,9 @@ import static org.mockito.Mockito.when;
 class ResumeIngestionServiceTest {
 
     @Mock VectorStore vectorStore;
-    @Mock JdbcTemplate jdbcTemplate;
+    @Mock VectorStoreRepository vectorStoreRepository;
+    @Mock IngestionStateRepository ingestionStateRepository;
+    @Mock DistributedLockService lockService;
     @Mock PlatformTransactionManager transactionManager;
 
     ResumeIngestionService service;
@@ -47,7 +51,13 @@ class ResumeIngestionServiceTest {
 
         AppProperties.Ingestion ingestion = new AppProperties.Ingestion(RESUME_PATH);
         AppProperties appProperties = new AppProperties(null, null, null, ingestion, null, null, null);
-        service = new ResumeIngestionService(vectorStore, jdbcTemplate, transactionManager, appProperties);
+        service = new ResumeIngestionService(
+                vectorStore,
+                vectorStoreRepository,
+                ingestionStateRepository,
+                lockService,
+                transactionManager,
+                appProperties);
 
         try (InputStream is = new ClassPathResource(RESUME_PATH).getInputStream()) {
             byte[] bytes = is.readAllBytes();
@@ -58,70 +68,62 @@ class ResumeIngestionServiceTest {
 
     @Test
     void runLockNotAcquiredSkipsIngestion() {
-        when(jdbcTemplate.queryForObject(anyString(), eq(Boolean.class), anyLong()))
-                .thenReturn(false);
+        when(lockService.tryWithLock(anyLong(), any(Runnable.class))).thenReturn(false);
 
         service.run();
 
-        verify(jdbcTemplate, never()).queryForList(anyString(), eq(String.class), any());
+        verify(ingestionStateRepository, never()).findById(any());
         verify(vectorStore, never()).add(any());
+        verify(vectorStoreRepository, never()).deleteBySource(any());
     }
 
     @Test
     void runHashUnchangedSkipsIngestion() {
-        when(jdbcTemplate.queryForObject(anyString(), eq(Boolean.class), anyLong()))
-                .thenReturn(true);
-        when(jdbcTemplate.queryForList(anyString(), eq(String.class), anyString()))
-                .thenReturn(List.of(realPdfHash));
+        givenLockAcquired();
+        when(ingestionStateRepository.findById("resume"))
+                .thenReturn(Optional.of(new IngestionState("resume", realPdfHash, java.time.Instant.now())));
 
         service.run();
 
         verify(vectorStore, never()).add(any());
-        verify(jdbcTemplate, never()).update(anyString(), anyString(), anyString());
+        verify(vectorStoreRepository, never()).deleteBySource(any());
+        verify(ingestionStateRepository, never()).save(any());
     }
 
     @Test
     void runNoStoredHashIngestsAndPersistsState() {
-        when(jdbcTemplate.queryForObject(anyString(), eq(Boolean.class), anyLong()))
-                .thenReturn(true);
-        when(jdbcTemplate.queryForList(anyString(), eq(String.class), anyString()))
-                .thenReturn(List.of());
+        givenLockAcquired();
+        when(ingestionStateRepository.findById("resume")).thenReturn(Optional.empty());
 
         service.run();
 
-        verify(jdbcTemplate).update(
-                anyString(), eq("resume"));
+        verify(vectorStoreRepository).deleteBySource("resume");
         verify(vectorStore).add(any());
-        verify(jdbcTemplate).update(
-                anyString(), eq("resume"), eq(realPdfHash));
+
+        ArgumentCaptor<IngestionState> captor = ArgumentCaptor.forClass(IngestionState.class);
+        verify(ingestionStateRepository).save(captor.capture());
+        assertThat(captor.getValue().getSource()).isEqualTo("resume");
+        assertThat(captor.getValue().getContentHash()).isEqualTo(realPdfHash);
     }
 
     @Test
     void runHashChangedDeletesOldAndIngestsNew() {
-        when(jdbcTemplate.queryForObject(anyString(), eq(Boolean.class), anyLong()))
-                .thenReturn(true);
-        when(jdbcTemplate.queryForList(anyString(), eq(String.class), anyString()))
-                .thenReturn(List.of("old-hash-value"));
+        givenLockAcquired();
+        when(ingestionStateRepository.findById("resume"))
+                .thenReturn(Optional.of(new IngestionState("resume", "old-hash-value", java.time.Instant.now())));
 
         service.run();
 
-        verify(jdbcTemplate).update(
-                anyString(), eq("resume"));
+        verify(vectorStoreRepository).deleteBySource("resume");
         verify(vectorStore).add(any());
+        verify(ingestionStateRepository).save(any());
     }
 
-    @Test
-    void runLockAlwaysReleasedAfterIngestion() {
-        when(jdbcTemplate.queryForObject(anyString(), eq(Boolean.class), anyLong()))
-                .thenReturn(true);
-        when(jdbcTemplate.queryForList(anyString(), eq(String.class), anyString()))
-                .thenReturn(List.of());
-        when(jdbcTemplate.update(anyString(), eq("resume")))
-                .thenThrow(new RuntimeException("DB error"));
-
-        try { service.run(); } catch (RuntimeException ignored) {}
-
-        verify(jdbcTemplate).queryForObject(
-                eq("SELECT pg_advisory_unlock(?)"), eq(Boolean.class), anyLong());
+    private void givenLockAcquired() {
+        when(lockService.tryWithLock(anyLong(), any(Runnable.class)))
+                .thenAnswer(inv -> {
+                    inv.<Runnable>getArgument(1).run();
+                    return true;
+                });
     }
 }
