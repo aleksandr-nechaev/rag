@@ -66,6 +66,10 @@ dependencies {
     testImplementation("org.testcontainers:postgresql")
     testImplementation("org.testcontainers:junit-jupiter")
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
+    // JUnit annotates its API with @API(status = ...) from apiguardian-api, but ships it with a
+    // non-propagating scope. The Spring AOT test-source compile (compileAotTestJava) can't resolve
+    // API$Status without it on the classpath, emitting "unknown enum constant Status.STABLE".
+    testImplementation("org.apiguardian:apiguardian-api:1.1.2")
 }
 
 dependencyManagement {
