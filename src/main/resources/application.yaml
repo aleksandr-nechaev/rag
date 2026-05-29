@@ -49,10 +49,19 @@ spring:
             # Default for the auto-configured ChatClient. Overridden per-call by ChatService
             # via .options(...) — we always pass either app.models.primary or app.models.fallback.
             model: ${app.models.primary}
+        embedding:
+          api-key: ${GOOGLE_AI_API_KEY}
+          text:
+            options:
+              model: gemini-embedding-2
+              dimensions: 1536
+              task-type: RETRIEVAL_DOCUMENT
     vectorstore:
       pgvector:
         initialize-schema: false
-        dimensions: 384
+        # HNSW limit is 2000 dims for VECTOR — gemini-embedding-2 is natively
+        # 3072-dim, so we request a 1536 Matryoshka truncation that still indexes.
+        dimensions: 1536
         distance-type: COSINE_DISTANCE
         index-type: HNSW
 

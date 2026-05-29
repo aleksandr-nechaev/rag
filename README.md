@@ -4,7 +4,7 @@ A RAG (Retrieval-Augmented Generation) application that answers questions about 
 
 ## How It Works
 
-1. On startup, the resume PDF is split into sections, embedded locally (all-MiniLM-L6-v2 via ONNX), and stored in pgvector. Re-ingestion only happens when the PDF changes (SHA-256 hash check), protected by a PostgreSQL advisory lock for multi-instance safety.
+1. On startup, the resume PDF is split into sections, embedded via the Google Gemini Embedding API (`gemini-embedding-2`, natively 3072-dim, truncated to 1536 so pgvector can HNSW-index it), and stored in pgvector. Re-ingestion only happens when the PDF changes (SHA-256 hash check), protected by a PostgreSQL advisory lock for multi-instance safety.
 2. A question arrives via REST or WebSocket → top relevant resume sections are retrieved via cosine similarity search (configurable, default 3) → sent to Gemini with a system prompt → answer is cached in Redis for 1 hour.
 3. The AI call uses a **two-tier model fallback chain** (see below). If both models fail, raw resume sections are returned as a fallback and cached.
 
@@ -27,9 +27,11 @@ Behaviour notes:
 ## Stack
 
 - Java 25 + Spring Boot 4.0.5, virtual threads enabled
-- Spring AI 2.0.0-M4: Google GenAI (Gemini), pgvector, local ONNX embeddings
+- Compiled to a **GraalVM native image** for sub-second startup and a low memory footprint (multi-stage `Dockerfile`)
+- Spring AI 2.0.0-M4: Google GenAI (Gemini chat + embeddings), pgvector
+- Spring Data JPA (Hibernate) + Spring Session over Redis
 - PostgreSQL with pgvector extension
-- Redis (answer cache, TTL 1h)
+- Redis (answer cache TTL 1h, HTTP sessions, distributed per-IP rate limiter)
 - Resilience4j: rate limiter (25 req/m to AI, sized for the fallback chain) + bulkhead (5 concurrent DB calls)
 - MapStruct for DTO ↔ domain model mapping
 - Liquibase for schema management
@@ -69,7 +71,7 @@ export GOOGLE_AI_API_KEY=your_key_here
 docker compose up -d --build
 ```
 
-The app runs as non-root user `app` (uid 10001) inside a layered image (`lib/` + thin JAR for cache reuse). Stop with `docker compose down`.
+`docker compose build` compiles a GraalVM native image via the multi-stage `Dockerfile` (the first build is slow, ~10 min). The app runs as non-root user `app` (uid 10001) on a slim Debian base. Stop with `docker compose down`.
 
 ### Local development (gradle + containerised infra)
 
@@ -81,7 +83,7 @@ export GOOGLE_AI_API_KEY=your_key_here
 ./gradlew bootRun
 ```
 
-First run downloads the ONNX sentence transformer model (~90 MB) from Hugging Face.
+Embeddings are computed by the Google Gemini API — no local model download is required, but `GOOGLE_AI_API_KEY` must be set for ingestion to succeed.
 
 ## API
 
@@ -133,7 +135,7 @@ For **production deploys**, run with `SPRING_PROFILES_ACTIVE=prod`. The `prod` p
 
 ### Horizontal scaling
 
-The app is stateless at the JVM level: chat history, answer cache, per-IP rate-limit counters, and HTTP sessions all live in Redis. Multiple instances behind a load balancer share the same view. Sticky sessions are required only for SockJS HTTP-fallback transports (long-poll, xhr-streaming) — pure WebSocket connections don't need them.
+The app is stateless at the instance level: chat history, answer cache, per-IP rate-limit counters, and HTTP sessions all live in Redis. Multiple instances behind a load balancer share the same view. Sticky sessions are required only for SockJS HTTP-fallback transports (long-poll, xhr-streaming) — pure WebSocket connections don't need them.
 
 ### Redis as a single point of failure
 
@@ -155,7 +157,9 @@ Resilience4j rate limiter and bulkhead are **per-instance**. With N instances, t
 ## Build & Test
 
 ```bash
-./gradlew build                                      # compile + test
+./gradlew build                                      # compile + test (JVM)
 ./gradlew test --tests "com.nechaev.SomeTest"        # single test class
 ./gradlew clean build                                # clean rebuild
+./gradlew nativeCompile                              # build the GraalVM native binary (needs a GraalVM JDK; ~10 min)
+docker compose build app                             # build the native image via the multi-stage Dockerfile
 ```

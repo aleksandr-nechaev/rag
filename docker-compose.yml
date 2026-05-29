@@ -22,6 +22,47 @@ services:
         condition: service_healthy
     restart: unless-stopped
 
+  # One-off tracing-agent run on Linux to capture native-image metadata (reflection/jni/resource)
+  # for code paths that only execute on Linux — notably PDFBox -> AWT during resume ingestion, whose
+  # libawt JNI FindClass(java.awt.GraphicsEnvironment) differs from macOS. Not started by a plain
+  # `docker compose up` (gated behind the "agent" profile). Usage:
+  #   docker compose down -v            # wipe DB so ingestion actually runs
+  #   GOOGLE_AI_API_KEY=... docker compose --profile agent up agent
+  # Watch for "Ingested N sections from resume." then stop with Ctrl+C — the agent merges the
+  # captured config into src/main/resources/META-INF/native-image on shutdown (and every 30s).
+  agent:
+    image: ghcr.io/graalvm/native-image-community:25-ol9
+    profiles: ["agent"]
+    working_dir: /workspace
+    volumes:
+      - .:/workspace
+    environment:
+      GOOGLE_AI_API_KEY: ${GOOGLE_AI_API_KEY}
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_NAME: postgres
+      DB_USERNAME: postgres
+      DB_PASSWORD: postgres
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      REDIS_USER: default
+      REDIS_PASSWORD: redis
+    ports:
+      - "8080:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    # The graalvm native-image-community image's default ENTRYPOINT is the `native-image` tool,
+    # so it would consume `command` as native-image args. Clear it so `command` runs in a shell.
+    entrypoint: [""]
+    # freetype/fontconfig back libfontmanager so PDFBox text extraction can't stumble on fonts.
+    command:
+      - sh
+      - -c
+      - "microdnf install -y freetype fontconfig >/dev/null 2>&1; ./gradlew bootRun -PtracingAgent --no-daemon"
+
   postgres:
     image: pgvector/pgvector:pg17
     environment:

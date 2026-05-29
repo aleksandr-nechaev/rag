@@ -40,3 +40,6 @@ out/
 ### macOS ###
 .DS_Store
 **/.DS_Store
+
+### Local launcher ###
+run-rag.command
