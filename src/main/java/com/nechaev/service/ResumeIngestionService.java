@@ -15,6 +15,7 @@ import org.springframework.core.io.ClassPathResource;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.support.TransactionTemplate;
+import org.springframework.util.unit.DataSize;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -51,6 +52,7 @@ public class ResumeIngestionService implements CommandLineRunner {
     private final DistributedLockService lockService;
     private final TransactionTemplate transactionTemplate;
     private final String resumePath;
+    private final DataSize maxSize;
 
     public ResumeIngestionService(VectorStore vectorStore,
                                   VectorStoreRepository vectorStoreRepository,
@@ -64,6 +66,7 @@ public class ResumeIngestionService implements CommandLineRunner {
         this.lockService = lockService;
         this.transactionTemplate = new TransactionTemplate(transactionManager);
         this.resumePath = appProperties.ingestion().resumePath();
+        this.maxSize = appProperties.ingestion().maxSize();
     }
 
     @Override
@@ -106,8 +109,17 @@ public class ResumeIngestionService implements CommandLineRunner {
     }
 
     private byte[] readPdfBytes() {
-        try (InputStream is = new ClassPathResource(resumePath).getInputStream()) {
-            return is.readAllBytes();
+        ClassPathResource resource = new ClassPathResource(resumePath);
+        try {
+            long size = resource.contentLength();
+            if (size > maxSize.toBytes()) {
+                throw new IllegalStateException(
+                        "Resume PDF size " + size + " bytes exceeds configured app.ingestion.max-size of "
+                                + maxSize.toBytes() + " bytes");
+            }
+            try (InputStream is = resource.getInputStream()) {
+                return is.readAllBytes();
+            }
         } catch (IOException e) {
             throw new IllegalStateException("Cannot read resume PDF", e);
         }

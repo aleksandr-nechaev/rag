@@ -102,6 +102,7 @@ app:
     answer-ttl: 1h
   ingestion:
     resume-path: static/Aleksandr Nechaev resume.pdf
+    max-size: 10MB
   rag:
     top-k: 3
     max-history: 20

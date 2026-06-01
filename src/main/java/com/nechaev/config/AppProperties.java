@@ -1,6 +1,7 @@
 package com.nechaev.config;
 
 import org.springframework.boot.context.properties.ConfigurationProperties;
+import org.springframework.util.unit.DataSize;
 
 import java.time.Duration;
 import java.util.List;
@@ -25,7 +26,7 @@ public record AppProperties(Cache cache, Protection protection, List<String> all
     public record PerIpRateLimit(int limitForPeriod, Duration limitRefreshPeriod,
                                  boolean trustedProxy, boolean failOpen) {}
 
-    public record Ingestion(String resumePath) {}
+    public record Ingestion(String resumePath, DataSize maxSize) {}
 
     public record Rag(int topK, int maxHistory, Duration sessionTtl) {}
 

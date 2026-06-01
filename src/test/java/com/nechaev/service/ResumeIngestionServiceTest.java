@@ -16,6 +16,7 @@ import org.springframework.ai.vectorstore.VectorStore;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.TransactionStatus;
+import org.springframework.util.unit.DataSize;
 
 import java.io.InputStream;
 import java.security.MessageDigest;
@@ -49,7 +50,7 @@ class ResumeIngestionServiceTest {
     void setUp() throws Exception {
         when(transactionManager.getTransaction(any())).thenReturn(mock(TransactionStatus.class));
 
-        AppProperties.Ingestion ingestion = new AppProperties.Ingestion(RESUME_PATH);
+        AppProperties.Ingestion ingestion = new AppProperties.Ingestion(RESUME_PATH, DataSize.ofMegabytes(10));
         AppProperties appProperties = new AppProperties(null, null, null, ingestion, null, null, null);
         service = new ResumeIngestionService(
                 vectorStore,
