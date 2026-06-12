@@ -954,6 +954,13 @@
           "parameterTypes": [
             "java.lang.String"
           ]
+        },
+        {
+          "name": "<init>",
+          "parameterTypes": [
+            "java.lang.String",
+            "org.springframework.util.unit.DataSize"
+          ]
         }
       ]
     },
@@ -1035,6 +1042,13 @@
     {
       "type": "com.nechaev.config.CacheConfig",
       "methods": [
+        {
+          "name": "cacheManager",
+          "parameterTypes": [
+            "org.springframework.data.redis.connection.RedisConnectionFactory",
+            "com.nechaev.config.AppProperties"
+          ]
+        },
         {
           "name": "cacheManager",
           "parameterTypes": [
@@ -1485,6 +1499,12 @@
     {
       "type": "com.nechaev.dto.AnswerResponse",
       "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": [
+            "java.lang.String"
+          ]
+        },
         {
           "name": "answer",
           "parameterTypes": []
@@ -19513,6 +19533,10 @@
       "type": "org.springframework.security.web.csrf.CsrfFilter"
     },
     {
+      "type": "org.springframework.security.web.csrf.DefaultCsrfToken",
+      "serializable": true
+    },
+    {
       "type": "org.springframework.security.web.header.HeaderWriterFilter"
     },
     {
@@ -19780,6 +19804,9 @@
     },
     {
       "type": "org.springframework.util.StringValueResolver"
+    },
+    {
+      "type": "org.springframework.util.unit.DataSizeEditor"
     },
     {
       "type": "org.springframework.validation.SmartValidator"
@@ -21430,6 +21457,9 @@
     },
     {
       "glob": "META-INF/persistence.xml"
+    },
+    {
+      "glob": "META-INF/resources/favicon.ico"
     },
     {
       "glob": "META-INF/resources/index.html"
@@ -23418,6 +23448,9 @@
       "glob": "org/springframework/boot/web/server/autoconfigure/servlet/ServletWebServerConfiguration.class"
     },
     {
+      "glob": "org/springframework/boot/web/server/mime-mappings.properties"
+    },
+    {
       "glob": "org/springframework/boot/webmvc/autoconfigure/DispatcherServletAutoConfiguration$DefaultDispatcherServletCondition.class"
     },
     {
@@ -23506,6 +23539,12 @@
     },
     {
       "glob": "org/springframework/boot/webmvc/autoconfigure/error/ErrorMvcAutoConfiguration.class"
+    },
+    {
+      "glob": "org/springframework/boot/webmvc/test/autoconfigure$MockMvcAutoConfiguration.class"
+    },
+    {
+      "glob": "org/springframework/boot/webmvc/test/autoconfigure/MockMvcAutoConfiguration.class"
     },
     {
       "glob": "org/springframework/boot/websocket/autoconfigure/servlet/WebSocketMessagingAutoConfiguration$Jackson2WebSocketMessageConverterConfiguration.class"
@@ -23835,6 +23874,12 @@
       "glob": "prompts/system-v2.txt"
     },
     {
+      "glob": "public/favicon.ico"
+    },
+    {
+      "glob": "resources/favicon.ico"
+    },
+    {
       "glob": "resources/index.html"
     },
     {
@@ -23851,6 +23896,9 @@
     },
     {
       "glob": "static/Aleksandr Nechaev resume.pdf"
+    },
+    {
+      "glob": "static/favicon.ico"
     },
     {
       "glob": "static/index.html"

@@ -1,6 +1,7 @@
 package com.nechaev.service;
 
 import tools.jackson.databind.ObjectMapper;
+import tools.jackson.databind.json.JsonMapper;
 import com.nechaev.config.AppProperties;
 import com.nechaev.dto.AnswerResponse;
 import com.nechaev.dto.QuestionRequest;
@@ -59,7 +60,7 @@ class ChatServiceTest {
     @Mock StringRedisTemplate redisTemplate;
     @Mock ValueOperations<String, String> valueOperations;
 
-    final ObjectMapper objectMapper = new ObjectMapper();
+    final ObjectMapper objectMapper = JsonMapper.builder().build();
 
     ChatService chatService;
     AiUsageMetrics aiUsageMetrics;

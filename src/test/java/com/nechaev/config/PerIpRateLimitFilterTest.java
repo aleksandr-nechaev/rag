@@ -8,6 +8,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.mock.web.MockHttpServletResponse;
 import tools.jackson.databind.ObjectMapper;
+import tools.jackson.databind.json.JsonMapper;
 
 import java.time.Duration;
 
@@ -32,7 +33,7 @@ class PerIpRateLimitFilterTest {
     @BeforeEach
     void setUp() {
         rateLimiter = mock(RedisRateLimiter.class);
-        objectMapper = new ObjectMapper();
+        objectMapper = JsonMapper.builder().build();
         meterRegistry = new SimpleMeterRegistry();
         AppProperties.PerIpRateLimit cfg = new AppProperties.PerIpRateLimit(60, Duration.ofMinutes(1), false, true);
         AppProperties.Protection protection = new AppProperties.Protection(null, null, cfg);
