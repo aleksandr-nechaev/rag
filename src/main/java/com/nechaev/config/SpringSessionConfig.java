@@ -1,13 +1,14 @@
 package com.nechaev.config;
 
 import org.springframework.context.annotation.Configuration;
-import org.springframework.session.data.redis.config.annotation.web.http.EnableRedisIndexedHttpSession;
+import org.springframework.session.data.redis.config.annotation.web.http.EnableRedisHttpSession;
 
 // Spring Boot 4 dropped session auto-configuration, so we wire the Redis-backed
-// HttpSession explicitly. 'Indexed' enables SessionExpired/Deleted events through
-// Redis keyspace notifications (used by SessionLifecycleListener to drop chat history).
+// HttpSession explicitly. We use the non-indexed variant: it does not require Redis
+// keyspace notifications, so it avoids the CONFIG command that AWS ElastiCache blocks.
+// Chat-history cleanup relies on the per-key TTL set in ChatService.saveHistory.
 @Configuration
-@EnableRedisIndexedHttpSession(
+@EnableRedisHttpSession(
         maxInactiveIntervalInSeconds = 3600,
         redisNamespace = "rag:session"
 )

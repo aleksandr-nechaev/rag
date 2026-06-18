@@ -1387,17 +1387,6 @@
       ]
     },
     {
-      "type": "com.nechaev.config.SessionLifecycleListener",
-      "methods": [
-        {
-          "name": "<init>",
-          "parameterTypes": [
-            "com.nechaev.service.ChatService"
-          ]
-        }
-      ]
-    },
-    {
       "type": "com.nechaev.config.SpringSessionConfig"
     },
     {
@@ -19619,9 +19608,6 @@
       ]
     },
     {
-      "type": "org.springframework.session.data.redis.config.annotation.web.http.EnableRedisIndexedHttpSession"
-    },
-    {
       "type": "org.springframework.session.data.redis.config.annotation.web.http.RedisIndexedHttpSessionConfiguration",
       "methods": [
         {
@@ -21762,9 +21748,6 @@
       "glob": "com/nechaev/config/SecurityConfig.class"
     },
     {
-      "glob": "com/nechaev/config/SessionLifecycleListener.class"
-    },
-    {
       "glob": "com/nechaev/config/SpringSessionConfig.class"
     },
     {
@@ -23790,7 +23773,7 @@
       "glob": "org/springframework/session/data/redis/config/annotation/web/http/AbstractRedisHttpSessionConfiguration.class"
     },
     {
-      "glob": "org/springframework/session/data/redis/config/annotation/web/http/EnableRedisIndexedHttpSession.class"
+      "glob": "org/springframework/session/data/redis/config/annotation/web/http/EnableRedisHttpSession.class"
     },
     {
       "glob": "org/springframework/session/data/redis/config/annotation/web/http/RedisIndexedHttpSessionConfiguration$EnableRedisKeyspaceNotificationsInitializer.class"
