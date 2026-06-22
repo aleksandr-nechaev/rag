@@ -277,7 +277,7 @@ public class ChatService {
                         """)
                         .param("context", context)
                         .param("question", question.text()))
-                .options(ChatOptions.builder().model(model).build())
+                .options(ChatOptions.builder().model(model))
                 .call()
                 .chatResponse();
         aiUsageMetrics.recordTokenUsage(response);

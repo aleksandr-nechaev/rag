@@ -131,7 +131,7 @@ class ChatServiceTest {
                 .system(anyString())
                 .messages(ArgumentMatchers.<List<Message>>any())
                 .user(ArgumentMatchers.<Consumer<ChatClient.PromptUserSpec>>any())
-                .options(any(org.springframework.ai.chat.prompt.ChatOptions.class))
+                .options(any(org.springframework.ai.chat.prompt.ChatOptions.Builder.class))
                 .call().chatResponse())
                 .thenReturn(stubChatResponse("Aleksandr has 5 years of Java experience."));
         AnswerResponse expected = new AnswerResponse("Aleksandr has 5 years of Java experience.");
@@ -151,7 +151,7 @@ class ChatServiceTest {
                 .system(anyString())
                 .messages(ArgumentMatchers.<List<Message>>any())
                 .user(ArgumentMatchers.<Consumer<ChatClient.PromptUserSpec>>any())
-                .options(any(org.springframework.ai.chat.prompt.ChatOptions.class))
+                .options(any(org.springframework.ai.chat.prompt.ChatOptions.Builder.class))
                 .call().chatResponse())
                 .thenThrow(new RuntimeException("AI unavailable"));
         when(chatMapper.toResponse(any())).thenAnswer(inv ->
@@ -172,7 +172,7 @@ class ChatServiceTest {
                 .system(anyString())
                 .messages(ArgumentMatchers.<List<Message>>any())
                 .user(ArgumentMatchers.<Consumer<ChatClient.PromptUserSpec>>any())
-                .options(any(org.springframework.ai.chat.prompt.ChatOptions.class))
+                .options(any(org.springframework.ai.chat.prompt.ChatOptions.Builder.class))
                 .call().chatResponse())
                 .thenThrow(new RuntimeException("primary model down"))
                 .thenReturn(stubChatResponse("Fallback model answer."));
@@ -218,7 +218,7 @@ class ChatServiceTest {
                 .system(anyString())
                 .messages(ArgumentMatchers.<List<Message>>any())
                 .user(ArgumentMatchers.<Consumer<ChatClient.PromptUserSpec>>any())
-                .options(any(org.springframework.ai.chat.prompt.ChatOptions.class))
+                .options(any(org.springframework.ai.chat.prompt.ChatOptions.Builder.class))
                 .call().chatResponse())
                 .thenReturn(stubChatResponse("AI answer."));
         when(chatMapper.toResponse(any())).thenAnswer(inv ->
@@ -256,7 +256,7 @@ class ChatServiceTest {
                 .system(anyString())
                 .messages(ArgumentMatchers.<List<Message>>any())
                 .user(ArgumentMatchers.<Consumer<ChatClient.PromptUserSpec>>any())
-                .options(any(org.springframework.ai.chat.prompt.ChatOptions.class))
+                .options(any(org.springframework.ai.chat.prompt.ChatOptions.Builder.class))
                 .call().chatResponse())
                 .thenReturn(stubChatResponse("AI answer."));
         when(chatMapper.toResponse(any())).thenAnswer(inv ->
@@ -281,7 +281,7 @@ class ChatServiceTest {
                 .system(anyString())
                 .messages(ArgumentMatchers.<List<Message>>any())
                 .user(ArgumentMatchers.<Consumer<ChatClient.PromptUserSpec>>any())
-                .options(any(org.springframework.ai.chat.prompt.ChatOptions.class))
+                .options(any(org.springframework.ai.chat.prompt.ChatOptions.Builder.class))
                 .call().chatResponse())
                 .thenReturn(stubChatResponse("AI answer."));
         when(chatMapper.toResponse(any())).thenAnswer(inv ->

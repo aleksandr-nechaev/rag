@@ -1,13 +1,13 @@
 plugins {
     java
-    id("org.springframework.boot") version "4.0.6"
+    id("org.springframework.boot") version "4.1.0"
     id("io.spring.dependency-management") version "1.1.7"
-    id("org.graalvm.buildtools.native") version "0.10.6"
+    id("org.graalvm.buildtools.native") version "1.1.2"
     // Statically enhances @Entity classes at compile time. With enhancement done at build,
     // Hibernate does NOT need to generate per-entity HibernateProxy classes via ByteBuddy at
     // runtime — which is forbidden in native image. Version must match the Hibernate runtime
-    // pulled in by spring-boot-starter-data-jpa (7.2.12.Final).
-    id("org.hibernate.orm") version "7.2.12.Final"
+    // pulled in by spring-boot-starter-data-jpa (7.4.1.Final).
+    id("org.hibernate.orm") version "7.4.1.Final"
 }
 
 group = "com.nechaev"
@@ -24,12 +24,11 @@ repositories {
     mavenCentral()
 }
 
-extra["springAiVersion"] = "2.0.0-M4"
+extra["springAiVersion"] = "2.0.0"
 extra["resilience4jVersion"] = "2.3.0"
 extra["springdocVersion"] = "3.0.3"
 extra["springwolfVersion"] = "2.2.0"
 extra["mapstructVersion"] = "1.6.3"
-extra["testcontainersBomVersion"] = "1.20.4"
 
 dependencies {
     implementation("org.springframework.boot:spring-boot-starter-webmvc")
@@ -62,9 +61,11 @@ dependencies {
 
     testImplementation("org.springframework.boot:spring-boot-starter-webmvc-test")
     testImplementation("org.springframework.boot:spring-boot-testcontainers")
-    testImplementation(platform("org.testcontainers:testcontainers-bom:${property("testcontainersBomVersion")}"))
-    testImplementation("org.testcontainers:postgresql")
-    testImplementation("org.testcontainers:junit-jupiter")
+    // Testcontainers 2.x is managed by the Spring Boot 4.1 BOM (testcontainers.version=2.0.5),
+    // which also imports the testcontainers-bom — no explicit version/BOM import needed. Note the
+    // 2.0 module artifact IDs are prefixed with "testcontainers-" (was "postgresql"/"junit-jupiter").
+    testImplementation("org.testcontainers:testcontainers-postgresql")
+    testImplementation("org.testcontainers:testcontainers-junit-jupiter")
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
     // JUnit annotates its API with @API(status = ...) from apiguardian-api, but ships it with a
     // non-propagating scope. The Spring AOT test-source compile (compileAotTestJava) can't resolve
@@ -119,14 +120,13 @@ tasks.withType<JavaCompile> {
 // Hibernate static bytecode enhancement.
 // Rewrites compiled @Entity classes so they no longer require runtime proxy generation —
 // the killer of native image compatibility. Each entity becomes self-sufficient with
-// pre-injected lazy-loading, dirty-tracking and association management hooks.
+// pre-injected lazy-loading and dirty-tracking hooks.
+// The empty block enables enhancement with the plugin's conventions, which match what we
+// relied on: lazy-initialization on, dirty-tracking on, association-management off. All the
+// individual toggles (enableLazyInitialization/enableDirtyTracking/enableAssociationManagement)
+// are @Deprecated(forRemoval=true) in the Hibernate 7.4 plugin, so we leave them unset.
 hibernate {
     enhancement {
-        enableLazyInitialization.set(true)
-        enableDirtyTracking.set(true)
-        // Association management is deprecated and not needed — we have no bidirectional
-        // @OneToMany / @ManyToOne associations in this app.
-        enableAssociationManagement.set(false)
     }
 }
 

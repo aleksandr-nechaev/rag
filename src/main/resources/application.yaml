@@ -45,17 +45,15 @@ spring:
         api:
           timeout: 30s
         chat:
-          options:
-            # Default for the auto-configured ChatClient. Overridden per-call by ChatService
-            # via .options(...) — we always pass either app.models.primary or app.models.fallback.
-            model: ${app.models.primary}
+          # Default for the auto-configured ChatClient. Overridden per-call by ChatService
+          # via .options(...) — we always pass either app.models.primary or app.models.fallback.
+          model: ${app.models.primary}
         embedding:
           api-key: ${GOOGLE_AI_API_KEY}
           text:
-            options:
-              model: gemini-embedding-2
-              dimensions: 1536
-              task-type: RETRIEVAL_DOCUMENT
+            model: gemini-embedding-2
+            dimensions: 1536
+            task-type: RETRIEVAL_DOCUMENT
     vectorstore:
       pgvector:
         initialize-schema: false

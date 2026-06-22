@@ -22,13 +22,13 @@ Behaviour notes:
 - Each user request consumes **exactly one** local rate-limiter permit, regardless of how many models are tried — fallback is "free" from our limiter's perspective.
 - Local limiter is sized at **25 RPM** to span the combined Google quota (15 gemini-3.1-flash-lite + 10 gemini-2.5-flash-lite). At sustained 25 RPM, expect ~15 served by primary and ~10 by fallback.
 - Outcomes are tagged in `ai.requests` Counter: `ai`, `ai_fallback_model`, `fallback_rate_limit`, `fallback_error`. Watch `ai_fallback_model` to gauge how often primary is degrading.
-- Models live in `app.models.{primary,fallback}`. Spring AI's default model (`spring.ai.google.genai.chat.options.model`) references `${app.models.primary}` so there's a single source of truth.
+- Models live in `app.models.{primary,fallback}`. Spring AI's default model (`spring.ai.google.genai.chat.model`) references `${app.models.primary}` so there's a single source of truth.
 
 ## Stack
 
-- Java 25 + Spring Boot 4.0.5, virtual threads enabled
+- Java 25 + Spring Boot 4.1.0 (Hibernate ORM 7.4.1), virtual threads enabled
 - Compiled to a **GraalVM native image** for sub-second startup and a low memory footprint (multi-stage `Dockerfile`)
-- Spring AI 2.0.0-M4: Google GenAI (Gemini chat + embeddings), pgvector
+- Spring AI 2.0.0: Google GenAI (Gemini chat + embeddings), pgvector
 - Spring Data JPA (Hibernate) + Spring Session over Redis
 - PostgreSQL with pgvector extension
 - Redis (answer cache TTL 1h, HTTP sessions, distributed per-IP rate limiter)

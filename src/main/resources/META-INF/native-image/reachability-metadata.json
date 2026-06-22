@@ -49,6 +49,12 @@
       "type": "char[]"
     },
     {
+      "type": "com.arjuna.ats.jta.TransactionManager"
+    },
+    {
+      "type": "com.atomikos.icatch.jta.UserTransactionManager"
+    },
+    {
       "type": "com.fasterxml.jackson.annotation.JacksonAnnotation"
     },
     {
@@ -185,7 +191,15 @@
       "type": "com.google.genai.types.AutoValue_EmbedContentConfig",
       "methods": [
         {
+          "name": "audioTrackExtraction",
+          "parameterTypes": []
+        },
+        {
           "name": "autoTruncate",
+          "parameterTypes": []
+        },
+        {
+          "name": "documentOcr",
           "parameterTypes": []
         },
         {
@@ -331,6 +345,10 @@
           "parameterTypes": []
         },
         {
+          "name": "serviceTier",
+          "parameterTypes": []
+        },
+        {
           "name": "shouldReturnHttpResponse",
           "parameterTypes": []
         },
@@ -418,6 +436,10 @@
         },
         {
           "name": "mediaResolution",
+          "parameterTypes": []
+        },
+        {
+          "name": "partMetadata",
           "parameterTypes": []
         },
         {
@@ -707,6 +729,9 @@
       "type": "com.google.genai.types.GroundingChunk$Builder"
     },
     {
+      "type": "com.google.genai.types.GroundingChunkCustomMetadata$Builder"
+    },
+    {
       "type": "com.google.genai.types.GroundingChunkImage$Builder"
     },
     {
@@ -722,7 +747,13 @@
       "type": "com.google.genai.types.GroundingChunkMapsPlaceAnswerSourcesReviewSnippet$Builder"
     },
     {
+      "type": "com.google.genai.types.GroundingChunkMapsRoute$Builder"
+    },
+    {
       "type": "com.google.genai.types.GroundingChunkRetrievedContext$Builder"
+    },
+    {
+      "type": "com.google.genai.types.GroundingChunkStringList$Builder"
     },
     {
       "type": "com.google.genai.types.GroundingChunkWeb$Builder"
@@ -798,6 +829,12 @@
           ]
         }
       ]
+    },
+    {
+      "type": "com.google.genai.types.ModelStage"
+    },
+    {
+      "type": "com.google.genai.types.ModelStatus$Builder"
     },
     {
       "type": "com.google.genai.types.NullValue"
@@ -892,6 +929,9 @@
     },
     {
       "type": "com.ibm.lang.management.OperatingSystemMXBean"
+    },
+    {
+      "type": "com.ibm.tx.jta.TransactionManagerFactory"
     },
     {
       "type": "com.jayway.jsonpath.DocumentContext"
@@ -3184,6 +3224,9 @@
       "type": "io.lettuce.core.protocol.DefaultEndpoint"
     },
     {
+      "type": "io.lettuce.core.protocol.MaintenanceAwareConnectionWatchdog"
+    },
+    {
       "type": "io.lettuce.core.protocol.RedisHandshakeHandler"
     },
     {
@@ -3460,6 +3503,9 @@
           "parameterTypes": []
         }
       ]
+    },
+    {
+      "type": "io.netty.channel.uring.IoUring"
     },
     {
       "type": "io.netty.handler.codec.dns.DatagramDnsQueryEncoder"
@@ -4460,6 +4506,9 @@
     },
     {
       "type": "jakarta.xml.bind.Binder"
+    },
+    {
+      "type": "jakarta.xml.bind.JAXBContext"
     },
     {
       "type": "jakarta.xml.ws.WebServiceRef"
@@ -5785,6 +5834,15 @@
       "type": "java.util.concurrent.Executor"
     },
     {
+      "type": "java.util.concurrent.ForkJoinPool",
+      "methods": [
+        {
+          "name": "getDelayedTaskCount",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
       "type": "java.util.concurrent.Future"
     },
     {
@@ -5924,6 +5982,20 @@
     },
     {
       "type": "jdk.management.jfr.SettingDescriptorInfo"
+    },
+    {
+      "type": "jdk.net.ExtendedSocketOptions",
+      "fields": [
+        {
+          "name": "TCP_KEEPCOUNT"
+        },
+        {
+          "name": "TCP_KEEPIDLE"
+        },
+        {
+          "name": "TCP_KEEPINTERVAL"
+        }
+      ]
     },
     {
       "type": "kotlin.Metadata"
@@ -6665,6 +6737,9 @@
     },
     {
       "type": "liquibase.diff.compare.core.IndexComparator"
+    },
+    {
+      "type": "liquibase.diff.compare.core.MSSQLViewComparator"
     },
     {
       "type": "liquibase.diff.compare.core.PrimaryKeyComparator"
@@ -7621,7 +7696,16 @@
       "type": "org.HdrHistogram.WriterReaderPhaser"
     },
     {
+      "type": "org.LatencyUtils$PauseDetector"
+    },
+    {
       "type": "org.LatencyUtils.PauseDetector"
+    },
+    {
+      "type": "org.aopalliance.aop.Advice"
+    },
+    {
+      "type": "org.aopalliance.intercept.Interceptor"
     },
     {
       "type": "org.aopalliance.intercept.MethodInterceptor"
@@ -7957,6 +8041,9 @@
       "type": "org.hibernate.annotations.AttributeBinderType"
     },
     {
+      "type": "org.hibernate.annotations.Audited"
+    },
+    {
       "type": "org.hibernate.annotations.Bag"
     },
     {
@@ -7970,6 +8057,9 @@
     },
     {
       "type": "org.hibernate.annotations.CascadeType[]"
+    },
+    {
+      "type": "org.hibernate.annotations.Changelog"
     },
     {
       "type": "org.hibernate.annotations.Check"
@@ -8446,6 +8536,9 @@
       "type": "org.hibernate.annotations.NaturalIdCache"
     },
     {
+      "type": "org.hibernate.annotations.NaturalIdClass"
+    },
+    {
       "type": "org.hibernate.annotations.NotFound"
     },
     {
@@ -8564,6 +8657,18 @@
     },
     {
       "type": "org.hibernate.annotations.TargetEmbeddable"
+    },
+    {
+      "type": "org.hibernate.annotations.Temporal"
+    },
+    {
+      "type": "org.hibernate.annotations.Temporal$Excluded"
+    },
+    {
+      "type": "org.hibernate.annotations.Temporal$HistoryPartitioning"
+    },
+    {
+      "type": "org.hibernate.annotations.Temporal$HistoryTable"
     },
     {
       "type": "org.hibernate.annotations.TenantId"
@@ -9100,6 +9205,9 @@
           "name": "NATURAL_ID_CACHE"
         },
         {
+          "name": "NATURAL_ID_CLASS"
+        },
+        {
           "name": "NOT_FOUND"
         },
         {
@@ -9197,6 +9305,18 @@
         },
         {
           "name": "TARGET_EMBEDDABLE"
+        },
+        {
+          "name": "TEMPORAL"
+        },
+        {
+          "name": "TEMPORAL_EXCLUDED"
+        },
+        {
+          "name": "TEMPORAL_HISTORY_PARTITIONING"
+        },
+        {
+          "name": "TEMPORAL_HISTORY_TABLE"
         },
         {
           "name": "TENANT_ID"
@@ -9727,6 +9847,9 @@
       "type": "org.hibernate.engine.config.internal.ConfigurationServiceImpl"
     },
     {
+      "type": "org.hibernate.engine.extension.internal.ExtensionIntegrationServiceImpl"
+    },
+    {
       "type": "org.hibernate.engine.internal.SessionMetricsLogger_$logger",
       "methods": [
         {
@@ -9846,6 +9969,9 @@
           "parameterTypes": []
         }
       ]
+    },
+    {
+      "type": "org.hibernate.engine.transaction.jta.platform.internal.StandardJtaPlatformResolver"
     },
     {
       "type": "org.hibernate.event.internal.EntityCopyLogging_$logger",
@@ -10152,7 +10278,21 @@
       ]
     },
     {
+      "type": "org.hibernate.metamodel.mapping.MappingModelCreationLogging_$logger",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": [
+            "org.jboss.logging.Logger"
+          ]
+        }
+      ]
+    },
+    {
       "type": "org.hibernate.metamodel.model.domain.JpaMetamodel"
+    },
+    {
+      "type": "org.hibernate.orm.micrometer.HibernateMetrics"
     },
     {
       "type": "org.hibernate.persister.entity.SingleTableEntityPersister",
@@ -10326,6 +10466,9 @@
     },
     {
       "type": "org.hibernate.stat.internal.StatisticsImpl"
+    },
+    {
+      "type": "org.hibernate.temporal.internal.ChangesetCoordinatorImpl"
     },
     {
       "type": "org.hibernate.tool.schema.internal.HibernateSchemaManagementTool"
@@ -11480,6 +11623,9 @@
       "type": "org.springframework.ai.chat.client.DefaultChatClientBuilder"
     },
     {
+      "type": "org.springframework.ai.chat.client.advisor.ToolCallingAdvisor$Builder"
+    },
+    {
       "type": "org.springframework.ai.chat.memory.ChatMemory"
     },
     {
@@ -11683,6 +11829,9 @@
       "type": "org.springframework.ai.google.genai.common.GoogleGenAiThinkingLevel"
     },
     {
+      "type": "org.springframework.ai.google.genai.embedding.GoogleGenAiEmbeddingConnectionDetails"
+    },
+    {
       "type": "org.springframework.ai.google.genai.text.GoogleGenAiTextEmbeddingModel"
     },
     {
@@ -11765,8 +11914,35 @@
           ]
         },
         {
+          "name": "chatClientBuilder",
+          "parameterTypes": [
+            "org.springframework.ai.model.chat.client.autoconfigure.ChatClientBuilderProperties",
+            "org.springframework.ai.model.chat.client.autoconfigure.ChatClientBuilderConfigurer",
+            "org.springframework.ai.chat.model.ChatModel",
+            "org.springframework.beans.factory.ObjectProvider",
+            "org.springframework.beans.factory.ObjectProvider",
+            "org.springframework.beans.factory.ObjectProvider",
+            "org.springframework.beans.factory.ObjectProvider"
+          ]
+        },
+        {
           "name": "chatClientBuilderConfigurer",
           "parameterTypes": [
+            "org.springframework.beans.factory.ObjectProvider"
+          ]
+        },
+        {
+          "name": "chatClientBuilderConfigurer",
+          "parameterTypes": [
+            "org.springframework.beans.factory.ObjectProvider",
+            "org.springframework.beans.factory.ObjectProvider"
+          ]
+        },
+        {
+          "name": "toolCallingAdvisorBuilder",
+          "parameterTypes": [
+            "org.springframework.ai.model.chat.client.autoconfigure.ChatClientBuilderProperties",
+            "org.springframework.ai.model.tool.ToolCallingManager",
             "org.springframework.beans.factory.ObjectProvider"
           ]
         }
@@ -11885,6 +12061,18 @@
             "org.springframework.context.ApplicationContext",
             "org.springframework.beans.factory.ObjectProvider",
             "org.springframework.beans.factory.ObjectProvider",
+            "org.springframework.beans.factory.ObjectProvider"
+          ]
+        },
+        {
+          "name": "googleGenAiChatModel",
+          "parameterTypes": [
+            "com.google.genai.Client",
+            "org.springframework.ai.model.google.genai.autoconfigure.chat.GoogleGenAiChatProperties",
+            "org.springframework.ai.model.tool.ToolCallingManager",
+            "org.springframework.context.ApplicationContext",
+            "org.springframework.beans.factory.ObjectProvider",
+            "org.springframework.beans.factory.ObjectProvider",
             "org.springframework.beans.factory.ObjectProvider",
             "org.springframework.beans.factory.ObjectProvider"
           ]
@@ -11907,6 +12095,12 @@
         {
           "name": "getOptions",
           "parameterTypes": []
+        },
+        {
+          "name": "setModel",
+          "parameterTypes": [
+            "java.lang.String"
+          ]
         }
       ]
     },
@@ -11971,6 +12165,16 @@
             "org.springframework.beans.factory.ObjectProvider",
             "org.springframework.beans.factory.ObjectProvider"
           ]
+        },
+        {
+          "name": "googleGenAiTextEmbedding",
+          "parameterTypes": [
+            "org.springframework.ai.google.genai.embedding.GoogleGenAiEmbeddingConnectionDetails",
+            "org.springframework.ai.model.google.genai.autoconfigure.embedding.GoogleGenAiTextEmbeddingProperties",
+            "org.springframework.beans.factory.ObjectProvider",
+            "org.springframework.beans.factory.ObjectProvider",
+            "org.springframework.beans.factory.ObjectProvider"
+          ]
         }
       ]
     },
@@ -11984,6 +12188,24 @@
         {
           "name": "getOptions",
           "parameterTypes": []
+        },
+        {
+          "name": "setDimensions",
+          "parameterTypes": [
+            "java.lang.Integer"
+          ]
+        },
+        {
+          "name": "setModel",
+          "parameterTypes": [
+            "java.lang.String"
+          ]
+        },
+        {
+          "name": "setTaskType",
+          "parameterTypes": [
+            "org.springframework.ai.google.genai.text.GoogleGenAiTextEmbeddingOptions$TaskType"
+          ]
         }
       ]
     },
@@ -12195,6 +12417,9 @@
           ]
         }
       ]
+    },
+    {
+      "type": "org.springframework.aop.Advisor"
     },
     {
       "type": "org.springframework.aop.PointcutAdvisor"
@@ -13357,6 +13582,15 @@
       "type": "org.springframework.boot.autoconfigure.task.TaskExecutorConfigurations$TaskExecutorConfiguration"
     },
     {
+      "type": "org.springframework.boot.autoconfigure.task.TaskExecutorConfigurations$TaskExecutorContextPropagationConfiguration",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
       "type": "org.springframework.boot.autoconfigure.task.TaskExecutorConfigurations$ThreadPoolTaskExecutorBuilderConfiguration",
       "methods": [
         {
@@ -13822,6 +14056,37 @@
       "type": "org.springframework.boot.data.redis.autoconfigure.ClientResourcesBuilderCustomizer"
     },
     {
+      "type": "org.springframework.boot.data.redis.autoconfigure.DataRedisAnnotationDrivenConfiguration",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": [
+            "org.springframework.boot.data.redis.autoconfigure.DataRedisProperties"
+          ]
+        },
+        {
+          "name": "redisMessageListenerContainer",
+          "parameterTypes": [
+            "org.springframework.boot.data.redis.autoconfigure.RedisMessageListenerContainerConfigurer",
+            "org.springframework.data.redis.connection.RedisConnectionFactory"
+          ]
+        },
+        {
+          "name": "redisMessageListenerContainerConfigurer",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": "org.springframework.boot.data.redis.autoconfigure.DataRedisAnnotationDrivenConfiguration$EnableRedisListenersConfiguration",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
       "type": "org.springframework.boot.data.redis.autoconfigure.DataRedisAutoConfiguration",
       "methods": [
         {
@@ -13993,6 +14258,9 @@
     },
     {
       "type": "org.springframework.boot.data.redis.autoconfigure.PropertiesDataRedisConnectionDetails"
+    },
+    {
+      "type": "org.springframework.boot.data.redis.autoconfigure.RedisMessageListenerContainerConfigurer"
     },
     {
       "type": "org.springframework.boot.data.redis.autoconfigure.health.DataRedisHealthContributorAutoConfiguration",
@@ -14330,6 +14598,9 @@
       ]
     },
     {
+      "type": "org.springframework.boot.health.autoconfigure.contributor.HealthContributorMembershipValidator"
+    },
+    {
       "type": "org.springframework.boot.health.autoconfigure.contributor.OnEnabledHealthIndicatorCondition",
       "methods": [
         {
@@ -14441,6 +14712,21 @@
     {
       "type": "org.springframework.boot.hibernate.autoconfigure.HibernateJpaConfiguration",
       "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": [
+            "javax.sql.DataSource",
+            "org.springframework.boot.jpa.autoconfigure.JpaProperties",
+            "org.springframework.beans.factory.ObjectProvider",
+            "org.springframework.boot.hibernate.autoconfigure.HibernateProperties",
+            "org.springframework.beans.factory.ObjectProvider",
+            "org.springframework.beans.factory.ObjectProvider",
+            "org.springframework.beans.factory.ObjectProvider",
+            "org.springframework.beans.factory.ObjectProvider",
+            "org.springframework.beans.factory.ObjectProvider",
+            "org.springframework.beans.factory.ObjectProvider"
+          ]
+        },
         {
           "name": "<init>",
           "parameterTypes": [
@@ -14701,15 +14987,59 @@
           "parameterTypes": []
         },
         {
+          "name": "jsonFactory",
+          "parameterTypes": [
+            "java.util.List"
+          ]
+        },
+        {
           "name": "jsonMapperBuilder",
           "parameterTypes": [
             "java.util.List"
+          ]
+        },
+        {
+          "name": "jsonMapperBuilder",
+          "parameterTypes": [
+            "java.util.List",
+            "tools.jackson.core.json.JsonFactory"
           ]
         }
       ]
     },
     {
+      "type": "org.springframework.boot.jackson.autoconfigure.JacksonAutoConfiguration$AbstractFactoryBuilderCustomizer"
+    },
+    {
       "type": "org.springframework.boot.jackson.autoconfigure.JacksonAutoConfiguration$AbstractMapperBuilderCustomizer"
+    },
+    {
+      "type": "org.springframework.boot.jackson.autoconfigure.JacksonAutoConfiguration$JacksonJsonCustomizerConfiguration",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": [
+            "org.springframework.boot.jackson.autoconfigure.JacksonProperties"
+          ]
+        },
+        {
+          "name": "standardJsonFactoryBuilderCustomizer",
+          "parameterTypes": []
+        },
+        {
+          "name": "standardJsonMapperBuilderCustomizer",
+          "parameterTypes": [
+            "org.springframework.beans.factory.ObjectProvider",
+            "org.springframework.beans.factory.config.AutowireCapableBeanFactory"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "org.springframework.boot.jackson.autoconfigure.JacksonAutoConfiguration$JacksonJsonCustomizerConfiguration$StandardJsonFactoryBuilderCustomizer"
+    },
+    {
+      "type": "org.springframework.boot.jackson.autoconfigure.JacksonAutoConfiguration$JacksonJsonCustomizerConfiguration$StandardJsonMapperBuilderCustomizer"
     },
     {
       "type": "org.springframework.boot.jackson.autoconfigure.JacksonAutoConfiguration$JacksonJsonMapperBuilderCustomizerConfiguration",
@@ -14785,6 +15115,9 @@
           "parameterTypes": []
         }
       ]
+    },
+    {
+      "type": "org.springframework.boot.jackson.autoconfigure.JsonFactoryBuilderCustomizer"
     },
     {
       "type": "org.springframework.boot.jackson.autoconfigure.JsonMapperBuilderCustomizer"
@@ -15249,6 +15582,15 @@
           ]
         },
         {
+          "name": "entityManagerFactoryBuilder",
+          "parameterTypes": [
+            "org.springframework.orm.jpa.JpaVendorAdapter",
+            "org.springframework.beans.factory.ObjectProvider",
+            "org.springframework.beans.factory.ObjectProvider",
+            "java.util.Map"
+          ]
+        },
+        {
           "name": "jpaVendorAdapter",
           "parameterTypes": []
         },
@@ -15487,6 +15829,13 @@
           ]
         },
         {
+          "name": "meterRegistryCloser",
+          "parameterTypes": [
+            "org.springframework.context.ApplicationContext",
+            "org.springframework.boot.micrometer.metrics.autoconfigure.MetricsProperties"
+          ]
+        },
+        {
           "name": "meterRegistryPostProcessor",
           "parameterTypes": [
             "org.springframework.context.ApplicationContext",
@@ -15634,6 +15983,12 @@
           "parameterTypes": []
         },
         {
+          "name": "classLoaderMetrics",
+          "parameterTypes": [
+            "org.springframework.beans.factory.ObjectProvider"
+          ]
+        },
+        {
           "name": "jvmCompilationMetrics",
           "parameterTypes": []
         },
@@ -15654,8 +16009,20 @@
           "parameterTypes": []
         },
         {
+          "name": "jvmMemoryMetrics",
+          "parameterTypes": [
+            "org.springframework.beans.factory.ObjectProvider"
+          ]
+        },
+        {
           "name": "jvmThreadMetrics",
           "parameterTypes": []
+        },
+        {
+          "name": "jvmThreadMetrics",
+          "parameterTypes": [
+            "org.springframework.beans.factory.ObjectProvider"
+          ]
         }
       ]
     },
@@ -15735,6 +16102,12 @@
         {
           "name": "processorMetrics",
           "parameterTypes": []
+        },
+        {
+          "name": "processorMetrics",
+          "parameterTypes": [
+            "org.springframework.beans.factory.ObjectProvider"
+          ]
         },
         {
           "name": "uptimeMetrics",
@@ -17895,7 +18268,36 @@
       "type": "org.springframework.data.querydsl.binding.QuerydslBindingsFactory"
     },
     {
+      "type": "org.springframework.data.redis.annotation.EnableRedisListeners"
+    },
+    {
+      "type": "org.springframework.data.redis.annotation.RedisListenerAnnotationBeanPostProcessor"
+    },
+    {
+      "type": "org.springframework.data.redis.annotation.RedisListeners"
+    },
+    {
       "type": "org.springframework.data.redis.cache.RedisCacheManager"
+    },
+    {
+      "type": "org.springframework.data.redis.config.RedisListenerBootstrapConfiguration",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        },
+        {
+          "name": "redisListenerAnnotationBeanPostProcessor",
+          "parameterTypes": []
+        },
+        {
+          "name": "redisListenerEndpointRegistry",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": "org.springframework.data.redis.config.RedisListenerEndpointRegistry"
     },
     {
       "type": "org.springframework.data.redis.connection.DefaultedRedisConnection",
@@ -18627,6 +19029,9 @@
       "type": "org.springframework.lang.NonNullApi"
     },
     {
+      "type": "org.springframework.messaging.Message"
+    },
+    {
       "type": "org.springframework.messaging.MessageChannel"
     },
     {
@@ -18670,6 +19075,9 @@
     },
     {
       "type": "org.springframework.messaging.handler.invocation.AbstractMethodMessageHandler"
+    },
+    {
+      "type": "org.springframework.messaging.handler.invocation.InvocableHandlerMethod"
     },
     {
       "type": "org.springframework.messaging.rsocket.annotation.support.RSocketMessageHandler"
@@ -19477,6 +19885,9 @@
       "type": "org.springframework.security.web.access.intercept.RequestMatcherDelegatingAuthorizationManager"
     },
     {
+      "type": "org.springframework.security.web.authentication.AnonymousAuthenticationFilter"
+    },
+    {
       "type": "org.springframework.security.web.authentication.DelegatingAuthenticationEntryPoint"
     },
     {
@@ -19587,6 +19998,9 @@
       "type": "org.springframework.session.data.redis.RedisIndexedSessionRepository"
     },
     {
+      "type": "org.springframework.session.data.redis.RedisSessionRepository"
+    },
+    {
       "type": "org.springframework.session.data.redis.config.annotation.SpringSessionRedisConnectionFactory"
     },
     {
@@ -19604,6 +20018,22 @@
           "parameterTypes": [
             "org.springframework.beans.factory.ObjectProvider"
           ]
+        }
+      ]
+    },
+    {
+      "type": "org.springframework.session.data.redis.config.annotation.web.http.EnableRedisHttpSession"
+    },
+    {
+      "type": "org.springframework.session.data.redis.config.annotation.web.http.RedisHttpSessionConfiguration",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        },
+        {
+          "name": "sessionRepository",
+          "parameterTypes": []
         }
       ]
     },
@@ -20325,6 +20755,9 @@
       "type": "org.webjars.WebJarVersionLocator"
     },
     {
+      "type": "org.wildfly.transaction.client.ContextTransactionManager"
+    },
+    {
       "type": "org.xmlbeam.XBProjector"
     },
     {
@@ -20905,10 +21338,25 @@
       "type": "sun.util.resources.cldr.TimeZoneNames_en_US"
     },
     {
+      "type": "tools.jackson.core.TokenStreamFactory"
+    },
+    {
       "type": "tools.jackson.core.TreeCodec"
     },
     {
       "type": "tools.jackson.core.Versioned"
+    },
+    {
+      "type": "tools.jackson.core.base.DecorableTSFactory"
+    },
+    {
+      "type": "tools.jackson.core.base.TextualTSFactory"
+    },
+    {
+      "type": "tools.jackson.core.json.JsonFactory"
+    },
+    {
+      "type": "tools.jackson.core.util.Snapshottable"
     },
     {
       "type": "tools.jackson.databind.JacksonModule"
@@ -21637,7 +22085,19 @@
       "glob": "META-INF/services/org.hibernate.bytecode.spi.BytecodeProvider"
     },
     {
+      "glob": "META-INF/services/org.hibernate.engine.extension.spi.ExtensionIntegration"
+    },
+    {
+      "glob": "META-INF/services/org.hibernate.engine.jdbc.batch.spi.BatchBuilder"
+    },
+    {
       "glob": "META-INF/services/org.hibernate.engine.jdbc.dialect.spi.DialectResolver"
+    },
+    {
+      "glob": "META-INF/services/org.hibernate.engine.jdbc.mutation.spi.MutationExecutorService"
+    },
+    {
+      "glob": "META-INF/services/org.hibernate.engine.transaction.jta.platform.spi.JtaPlatformProvider"
     },
     {
       "glob": "META-INF/services/org.hibernate.event.monitor.spi.EventMonitor"
@@ -21659,6 +22119,12 @@
     },
     {
       "glob": "META-INF/services/org.hibernate.service.spi.SessionFactoryServiceContributor"
+    },
+    {
+      "glob": "META-INF/services/org.hibernate.stat.spi.StatisticsFactory"
+    },
+    {
+      "glob": "META-INF/services/org.hibernate.tool.schema.spi.SchemaManagementTool"
     },
     {
       "glob": "META-INF/services/org.slf4j.spi.SLF4JServiceProvider"
@@ -22681,6 +23147,9 @@
       "glob": "org/springframework/boot/autoconfigure/ssl/SslAutoConfiguration.class"
     },
     {
+      "glob": "org/springframework/boot/autoconfigure/task/DefaultTaskSchedulerConfiguration.class"
+    },
+    {
       "glob": "org/springframework/boot/autoconfigure/task/TaskExecutionAutoConfiguration.class"
     },
     {
@@ -22706,6 +23175,9 @@
     },
     {
       "glob": "org/springframework/boot/autoconfigure/task/TaskExecutorConfigurations$TaskExecutorConfiguration.class"
+    },
+    {
+      "glob": "org/springframework/boot/autoconfigure/task/TaskExecutorConfigurations$TaskExecutorContextPropagationConfiguration.class"
     },
     {
       "glob": "org/springframework/boot/autoconfigure/task/TaskExecutorConfigurations$ThreadPoolTaskExecutorBuilderConfiguration.class"
@@ -22757,6 +23229,12 @@
     },
     {
       "glob": "org/springframework/boot/data/jpa/autoconfigure/DataJpaRepositoriesRegistrar.class"
+    },
+    {
+      "glob": "org/springframework/boot/data/redis/autoconfigure/DataRedisAnnotationDrivenConfiguration$EnableRedisListenersConfiguration.class"
+    },
+    {
+      "glob": "org/springframework/boot/data/redis/autoconfigure/DataRedisAnnotationDrivenConfiguration.class"
     },
     {
       "glob": "org/springframework/boot/data/redis/autoconfigure/DataRedisAutoConfiguration.class"
@@ -22954,6 +23432,9 @@
       "glob": "org/springframework/boot/http/converter/autoconfigure/KotlinSerializationHttpMessageConvertersConfiguration.class"
     },
     {
+      "glob": "org/springframework/boot/jackson/autoconfigure/JacksonAutoConfiguration$AbstractFactoryBuilderCustomizer.class"
+    },
+    {
       "glob": "org/springframework/boot/jackson/autoconfigure/JacksonAutoConfiguration$AbstractMapperBuilderCustomizer.class"
     },
     {
@@ -22961,6 +23442,15 @@
     },
     {
       "glob": "org/springframework/boot/jackson/autoconfigure/JacksonAutoConfiguration$JacksonAutoConfigurationRuntimeHints.class"
+    },
+    {
+      "glob": "org/springframework/boot/jackson/autoconfigure/JacksonAutoConfiguration$JacksonJsonCustomizerConfiguration$StandardJsonFactoryBuilderCustomizer.class"
+    },
+    {
+      "glob": "org/springframework/boot/jackson/autoconfigure/JacksonAutoConfiguration$JacksonJsonCustomizerConfiguration$StandardJsonMapperBuilderCustomizer.class"
+    },
+    {
+      "glob": "org/springframework/boot/jackson/autoconfigure/JacksonAutoConfiguration$JacksonJsonCustomizerConfiguration.class"
     },
     {
       "glob": "org/springframework/boot/jackson/autoconfigure/JacksonAutoConfiguration$JacksonJsonMapperBuilderCustomizerConfiguration$StandardJsonMapperBuilderCustomizer.class"
@@ -23090,6 +23580,9 @@
     },
     {
       "glob": "org/springframework/boot/jdbc/autoconfigure/JndiDataSourceAutoConfiguration.class"
+    },
+    {
+      "glob": "org/springframework/boot/jdbc/autoconfigure/LazyConnectionDataSourceConfiguration.class"
     },
     {
       "glob": "org/springframework/boot/jdbc/autoconfigure/NamedParameterJdbcTemplateConfiguration.class"
@@ -23647,6 +24140,12 @@
       "glob": "org/springframework/data/mapping/model/ClassGeneratingEntityInstantiator$ObjectInstantiator.class"
     },
     {
+      "glob": "org/springframework/data/redis/annotation/EnableRedisListeners.class"
+    },
+    {
+      "glob": "org/springframework/data/redis/config/RedisListenerBootstrapConfiguration.class"
+    },
+    {
       "glob": "org/springframework/data/redis/core/convert/ReferenceResolverImpl.class"
     },
     {
@@ -23774,6 +24273,9 @@
     },
     {
       "glob": "org/springframework/session/data/redis/config/annotation/web/http/EnableRedisHttpSession.class"
+    },
+    {
+      "glob": "org/springframework/session/data/redis/config/annotation/web/http/RedisHttpSessionConfiguration.class"
     },
     {
       "glob": "org/springframework/session/data/redis/config/annotation/web/http/RedisIndexedHttpSessionConfiguration$EnableRedisKeyspaceNotificationsInitializer.class"
