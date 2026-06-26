@@ -36,9 +36,11 @@ jobs:
       - name: Run tests
         run: ./gradlew test --no-daemon
 
-  build-and-deploy:
+  build:
     needs: test
     runs-on: ubuntu-latest
+    outputs:
+      tag: ${{ steps.vars.outputs.tag }}
     steps:
       - uses: actions/checkout@v4
 
@@ -61,6 +63,10 @@ jobs:
             ${{ env.IMAGE_REPO }}:${{ steps.vars.outputs.tag }}
             ${{ env.IMAGE_REPO }}:latest
 
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
       - name: Configure AWS credentials (OIDC)
         uses: aws-actions/configure-aws-credentials@v4
         with:
@@ -79,7 +85,7 @@ jobs:
         with:
           task-definition: task-def.json
           container-name: ${{ env.CONTAINER_NAME }}
-          image: ${{ env.IMAGE_REPO }}:${{ steps.vars.outputs.tag }}
+          image: ${{ env.IMAGE_REPO }}:${{ needs.build.outputs.tag }}
 
       - name: Deploy to ECS
         uses: aws-actions/amazon-ecs-deploy-task-definition@v2
