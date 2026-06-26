@@ -3,6 +3,15 @@ name: CD
 on:
   push:
     branches: [ main ]
+    # Only build/deploy when something that affects the image changes;
+    # keep this list in sync with build inputs (skipping it leaves prod on a stale image).
+    paths:
+      - 'src/**'
+      - 'build.gradle.kts'
+      - 'settings.gradle.kts'
+      - 'gradle/**'
+      - 'gradlew'
+      - 'Dockerfile'
 
 concurrency:
   group: deploy-main
@@ -17,7 +26,7 @@ env:
   CONTAINER_NAME: rag-resume-snapshot
 
 permissions:
-  id-token: write   # требуется для OIDC-аутентификации в AWS
+  id-token: write   # required for OIDC authentication to AWS
   contents: read
 
 jobs:
@@ -59,12 +68,15 @@ jobs:
         with:
           context: .
           push: true
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
           tags: |
             ${{ env.IMAGE_REPO }}:${{ steps.vars.outputs.tag }}
             ${{ env.IMAGE_REPO }}:latest
 
   deploy:
     needs: build
+    if: false          # ECS deploy disabled; remove this line to re-enable
     runs-on: ubuntu-latest
     steps:
       - name: Configure AWS credentials (OIDC)
