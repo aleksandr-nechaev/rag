@@ -32,7 +32,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 @WebMvcTest(controllers = {RestApiChatController.class, ApiExceptionHandler.class})
 @EnableConfigurationProperties(AppProperties.class)
-@Import(RestApiChatControllerTest.MeterRegistryConfig.class)
+@Import({RestApiChatControllerTest.MeterRegistryConfig.class, com.nechaev.config.ClientIpResolver.class})
 class RestApiChatControllerTest {
 
     static class MeterRegistryConfig {

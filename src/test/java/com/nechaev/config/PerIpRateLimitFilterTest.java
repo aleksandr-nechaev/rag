@@ -38,7 +38,7 @@ class PerIpRateLimitFilterTest {
         AppProperties.PerIpRateLimit cfg = new AppProperties.PerIpRateLimit(60, Duration.ofMinutes(1), false, true);
         AppProperties.Protection protection = new AppProperties.Protection(null, null, cfg);
         props = new AppProperties(null, protection, null, null, null, null, null);
-        filter = new PerIpRateLimitFilter(rateLimiter, objectMapper, props, meterRegistry);
+        filter = new PerIpRateLimitFilter(rateLimiter, new ClientIpResolver(props), objectMapper, meterRegistry);
         chain = mock(FilterChain.class);
     }
 
@@ -102,7 +102,7 @@ class PerIpRateLimitFilterTest {
         AppProperties.PerIpRateLimit cfg = new AppProperties.PerIpRateLimit(60, Duration.ofMinutes(1), true, true);
         AppProperties.Protection protection = new AppProperties.Protection(null, null, cfg);
         AppProperties propsTrusted = new AppProperties(null, protection, null, null, null, null, null);
-        PerIpRateLimitFilter filterTrusted = new PerIpRateLimitFilter(rateLimiter, objectMapper, propsTrusted, meterRegistry);
+        PerIpRateLimitFilter filterTrusted = new PerIpRateLimitFilter(rateLimiter, new ClientIpResolver(propsTrusted), objectMapper, meterRegistry);
         when(rateLimiter.tryAcquire("9.9.9.9")).thenReturn(true);
         MockHttpServletRequest req = new MockHttpServletRequest("POST", "/api/v1/ask");
         req.setRemoteAddr("1.2.3.4");
@@ -121,7 +121,7 @@ class PerIpRateLimitFilterTest {
         AppProperties.PerIpRateLimit cfg = new AppProperties.PerIpRateLimit(60, Duration.ofMinutes(1), true, true);
         AppProperties.Protection protection = new AppProperties.Protection(null, null, cfg);
         AppProperties propsTrusted = new AppProperties(null, protection, null, null, null, null, null);
-        PerIpRateLimitFilter filterTrusted = new PerIpRateLimitFilter(rateLimiter, objectMapper, propsTrusted, meterRegistry);
+        PerIpRateLimitFilter filterTrusted = new PerIpRateLimitFilter(rateLimiter, new ClientIpResolver(propsTrusted), objectMapper, meterRegistry);
         when(rateLimiter.tryAcquire("1.2.3.4")).thenReturn(true);
         MockHttpServletRequest req = new MockHttpServletRequest("POST", "/api/v1/ask");
         req.setRemoteAddr("1.2.3.4");

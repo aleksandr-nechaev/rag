@@ -42,5 +42,10 @@ out/
 .DS_Store
 **/.DS_Store
 
+### GraalVM tracing agent ###
+# Lock file the native-image-agent writes while capturing metadata. A leftover copy
+# (e.g. agent killed mid-run) blocks the next agent start, so never track it.
+src/main/resources/META-INF/native-image/.lock
+
 ### Local launcher ###
 run-rag.command
