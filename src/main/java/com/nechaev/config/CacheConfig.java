@@ -12,6 +12,9 @@ import org.springframework.data.redis.connection.RedisConnectionFactory;
 import org.springframework.data.redis.serializer.GenericJacksonJsonRedisSerializer;
 import org.springframework.data.redis.serializer.RedisSerializationContext;
 
+import java.time.Duration;
+import java.util.Map;
+
 
 @Configuration
 @EnableCaching
@@ -23,13 +26,23 @@ public class CacheConfig implements CachingConfigurer {
         GenericJacksonJsonRedisSerializer serializer = GenericJacksonJsonRedisSerializer.builder()
                 .enableUnsafeDefaultTyping()
                 .build();
-        RedisCacheConfiguration config = RedisCacheConfiguration.defaultCacheConfig()
-                .entryTtl(props.cache().answerTtl())
-                .disableCachingNullValues()
-                .serializeValuesWith(RedisSerializationContext.SerializationPair.fromSerializer(serializer));
+        RedisSerializationContext.SerializationPair<Object> valuePair =
+                RedisSerializationContext.SerializationPair.fromSerializer(serializer);
+        // Two caches, one manager: answers (Q→A) and sessions (chat history). Same serializer,
+        // different TTLs. allEntries eviction for both is driven from CacheEvictionService.
         return RedisCacheManager.builder(connectionFactory)
-                .cacheDefaults(config)
+                .cacheDefaults(cacheConfig(props.cache().answerTtl(), valuePair))
+                .withInitialCacheConfigurations(Map.of(
+                        "sessions", cacheConfig(props.rag().sessionTtl(), valuePair)))
                 .build();
+    }
+
+    private static RedisCacheConfiguration cacheConfig(
+            Duration ttl, RedisSerializationContext.SerializationPair<Object> valuePair) {
+        return RedisCacheConfiguration.defaultCacheConfig()
+                .entryTtl(ttl)
+                .disableCachingNullValues()
+                .serializeValuesWith(valuePair);
     }
 
     // Fail-open on Redis hiccups: log the error and call the underlying method directly

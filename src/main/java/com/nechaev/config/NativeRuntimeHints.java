@@ -1,5 +1,6 @@
 package com.nechaev.config;
 
+import com.nechaev.model.SessionMessage;
 import com.pgvector.PGvector;
 import org.jspecify.annotations.Nullable;
 import org.springframework.aot.hint.MemberCategory;
@@ -7,6 +8,7 @@ import org.springframework.aot.hint.RuntimeHints;
 import org.springframework.aot.hint.RuntimeHintsRegistrar;
 
 import java.sql.PreparedStatement;
+import java.util.ArrayList;
 
 public class NativeRuntimeHints implements RuntimeHintsRegistrar {
 
@@ -19,6 +21,14 @@ public class NativeRuntimeHints implements RuntimeHintsRegistrar {
         // PGvector type — covered by the agent but kept here as a belt-and-braces guarantee
         // because the JDBC driver uses reflection to register it on every new connection.
         hints.reflection().registerType(PGvector.class, MemberCategory.values());
+
+        // Value type of the "sessions" Redis cache. Serialized by GenericJacksonJsonRedisSerializer
+        // (default typing embeds the class name), so the record, its accessors/constructor, the
+        // Role enum and the concrete ArrayList wrapper must be reflectively reachable in the native
+        // image — otherwise the read fails-open to empty and history silently collapses.
+        hints.reflection().registerType(SessionMessage.class, MemberCategory.values());
+        hints.reflection().registerType(SessionMessage.Role.class, MemberCategory.values());
+        hints.reflection().registerType(ArrayList.class, MemberCategory.values());
 
         // Classpath resources read at runtime. The agent picks these up too, but explicit
         // patterns guard against future code paths that read these resources lazily.

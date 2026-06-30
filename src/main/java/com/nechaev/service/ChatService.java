@@ -1,13 +1,12 @@
 package com.nechaev.service;
 
-import com.fasterxml.jackson.annotation.JsonProperty;
 import com.nechaev.config.AppProperties;
 import com.nechaev.dto.AnswerResponse;
 import com.nechaev.dto.QuestionRequest;
 import com.nechaev.mapper.ChatMapper;
 import com.nechaev.model.Answer;
 import com.nechaev.model.Question;
-import com.nechaev.util.LogUtils;
+import com.nechaev.model.SessionMessage;
 import io.github.resilience4j.bulkhead.Bulkhead;
 import io.github.resilience4j.bulkhead.BulkheadFullException;
 import io.github.resilience4j.ratelimiter.RateLimiter;
@@ -24,14 +23,9 @@ import org.springframework.ai.document.Document;
 import org.springframework.ai.vectorstore.SearchRequest;
 import org.springframework.ai.vectorstore.VectorStore;
 import org.springframework.cache.annotation.Cacheable;
-import org.springframework.dao.DataAccessException;
-import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
-import tools.jackson.core.JacksonException;
-import tools.jackson.core.type.TypeReference;
-import tools.jackson.databind.ObjectMapper;
 
-import java.time.Duration;
+import java.util.ArrayList;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Optional;
@@ -46,8 +40,7 @@ import static com.nechaev.service.AiUsageMetrics.Outcome.FALLBACK_RATE_LIMIT;
 public class ChatService {
 
     private static final Logger log = LoggerFactory.getLogger(ChatService.class);
-    private static final String SESSION_KEY_PREFIX = "session:";
-    // Cap on individual session message content stored in Redis. User input is bounded
+    // Cap on individual session message content stored in the cache. User input is bounded
     // separately by QuestionRequest @Size(max=1000); assistant replies can be longer, hence 2000.
     private static final int MAX_MESSAGE_CONTENT_LENGTH = 2000;
     private static final String AI_EMPTY_RESPONSE = "No response from AI.";
@@ -55,15 +48,13 @@ public class ChatService {
             "AI is currently unavailable and no relevant information was found in the resume.";
     private static final String AI_UNAVAILABLE_WITH_CONTEXT =
             "AI is currently unavailable. Here is the relevant information from the resume:\n\n";
-    private static final TypeReference<List<MessageDto>> MESSAGE_LIST_TYPE = new TypeReference<>() {};
 
     private final ChatClient chatClient;
     private final VectorStore vectorStore;
     private final Bulkhead ragPipelineBulkhead;
     private final RateLimiter aiRateLimiter;
     private final ChatMapper chatMapper;
-    private final StringRedisTemplate redisTemplate;
-    private final ObjectMapper objectMapper;
+    private final SessionHistoryStore sessionHistoryStore;
     private final AiUsageMetrics aiUsageMetrics;
     private final PromptCatalog promptCatalog;
     private final PiiRedactor piiRedactor;
@@ -71,14 +62,6 @@ public class ChatService {
     private final String fallbackModel;
     private final int topK;
     private final int maxHistory;
-    private final Duration sessionTtl;
-
-    private enum Role {
-        @JsonProperty("user") USER,
-        @JsonProperty("assistant") ASSISTANT
-    }
-
-    private record MessageDto(Role role, String content) {}
 
     private record PipelineResult(AnswerResponse response, boolean aiGenerated) {}
 
@@ -87,8 +70,7 @@ public class ChatService {
                        Bulkhead ragPipelineBulkhead,
                        RateLimiter aiRateLimiter,
                        ChatMapper chatMapper,
-                       StringRedisTemplate redisTemplate,
-                       ObjectMapper objectMapper,
+                       SessionHistoryStore sessionHistoryStore,
                        AiUsageMetrics aiUsageMetrics,
                        PromptCatalog promptCatalog,
                        PiiRedactor piiRedactor,
@@ -98,8 +80,7 @@ public class ChatService {
         this.ragPipelineBulkhead = ragPipelineBulkhead;
         this.aiRateLimiter = aiRateLimiter;
         this.chatMapper = chatMapper;
-        this.redisTemplate = redisTemplate;
-        this.objectMapper = objectMapper;
+        this.sessionHistoryStore = sessionHistoryStore;
         this.aiUsageMetrics = aiUsageMetrics;
         this.promptCatalog = promptCatalog;
         this.piiRedactor = piiRedactor;
@@ -107,7 +88,6 @@ public class ChatService {
         this.fallbackModel = appProperties.models().fallback();
         this.topK = appProperties.rag().topK();
         this.maxHistory = appProperties.rag().maxHistory();
-        this.sessionTtl = appProperties.rag().sessionTtl();
     }
 
     @Cacheable(value = "answers", key = "#request.question().strip().toLowerCase()")
@@ -118,10 +98,15 @@ public class ChatService {
 
     public AnswerResponse answerWithSession(String sessionId, QuestionRequest request) {
         LinkedList<Message> history = loadHistory(sessionId);
+        // Exact repeat of the immediately previous question: return the answer we already have
+        // instead of spending another AI call and returning an inconsistent fresh answer.
+        if (isDuplicateOfLastQuestion(history, request.question())) {
+            return new AnswerResponse(history.getLast().getText());
+        }
         Question question = chatMapper.toQuestion(request);
         PipelineResult result = executeRagPipeline(question, history);
         AnswerResponse response = result.response();
-        if (result.aiGenerated() && !isDuplicateOfLastQuestion(history, request.question())) {
+        if (result.aiGenerated()) {
             history.add(new UserMessage(request.question()));
             history.add(new AssistantMessage(response.answer()));
             trimToMaxHistory(history);
@@ -145,67 +130,44 @@ public class ChatService {
     }
 
     public void clearSession(String sessionId) {
-        try {
-            redisTemplate.delete(SESSION_KEY_PREFIX + sessionId);
-        } catch (DataAccessException e) {
-            log.warn("Redis unavailable on session clear for session {}…: {}",
-                    LogUtils.shortId(sessionId), e.getMessage());
-        }
+        sessionHistoryStore.clear(sessionId);
     }
 
+    // Fail-open on Redis hiccups (load/save/clear) is handled centrally by the
+    // LoggingCacheErrorHandler in CacheConfig: a cache error degrades to the underlying
+    // no-op method, so loadHistory starts fresh and saveHistory simply doesn't persist.
     private LinkedList<Message> loadHistory(String sessionId) {
-        String json;
-        try {
-            json = redisTemplate.opsForValue().get(SESSION_KEY_PREFIX + sessionId);
-        } catch (DataAccessException e) {
-            log.warn("Redis unavailable on history load for session {}…, starting fresh: {}",
-                    LogUtils.shortId(sessionId), e.getMessage());
-            return new LinkedList<>();
-        }
-        if (json == null) return new LinkedList<>();
-        try {
-            List<MessageDto> dtos = objectMapper.readValue(json, MESSAGE_LIST_TYPE);
-            return dtos.stream()
-                    .map(dto -> switch (dto.role()) {
-                        case null -> throw new IllegalArgumentException("Null role in session history");
-                        case USER -> (Message) new UserMessage(dto.content());
-                        case ASSISTANT -> new AssistantMessage(dto.content());
-                    })
-                    .collect(Collectors.toCollection(LinkedList::new));
-        } catch (JacksonException | IllegalArgumentException e) {
-            log.warn("Failed to deserialize session history for session {}…, starting fresh: {}",
-                    LogUtils.shortId(sessionId), e.getMessage());
-            return new LinkedList<>();
-        }
+        return sessionHistoryStore.load(sessionId).stream()
+                .map(dto -> switch (dto.role()) {
+                    case null -> throw new IllegalArgumentException("Null role in session history");
+                    case USER -> (Message) new UserMessage(dto.content());
+                    case ASSISTANT -> new AssistantMessage(dto.content());
+                })
+                .collect(Collectors.toCollection(LinkedList::new));
     }
 
     private static String truncate(String s) {
         return s.length() <= MAX_MESSAGE_CONTENT_LENGTH ? s : s.substring(0, MAX_MESSAGE_CONTENT_LENGTH);
     }
 
-    private static Role toRole(Message message) {
+    private static SessionMessage.Role toRole(Message message) {
         return switch (message) {
-            case UserMessage _ -> Role.USER;
-            case AssistantMessage _ -> Role.ASSISTANT;
+            case UserMessage _ -> SessionMessage.Role.USER;
+            case AssistantMessage _ -> SessionMessage.Role.ASSISTANT;
             default -> throw new IllegalStateException(
                     "Unsupported message type in session history: " + message.getClass());
         };
     }
 
     private void saveHistory(String sessionId, List<Message> history) {
-        List<MessageDto> dtos = history.stream()
-                .map(m -> new MessageDto(toRole(m), truncate(m.getText())))
-                .toList();
-        try {
-            String json = objectMapper.writeValueAsString(dtos);
-            redisTemplate.opsForValue().set(SESSION_KEY_PREFIX + sessionId, json, sessionTtl);
-        } catch (JacksonException e) {
-            log.warn("Failed to serialize session history for session {}…: {}",
-                    LogUtils.shortId(sessionId), e.getMessage());
-        } catch (DataAccessException e) {
-            log.warn("Redis unavailable on history save for session {}…, history not persisted: {}",
-                    LogUtils.shortId(sessionId), e.getMessage());
-        }
+        // Collect into a mutable ArrayList, not Stream.toList(): the "sessions" cache value is
+        // serialized with default typing, and the immutable list from toList() serializes but
+        // cannot be deserialized back (no constructor) — the read would fail-open to empty,
+        // silently dropping all but the latest turn. ArrayList round-trips correctly.
+        List<SessionMessage> dtos = history.stream()
+                .map(m -> new SessionMessage(toRole(m), truncate(m.getText())))
+                .collect(Collectors.toCollection(ArrayList::new));
+        sessionHistoryStore.save(sessionId, dtos);
     }
 
     private PipelineResult executeRagPipeline(Question question, List<Message> history) {

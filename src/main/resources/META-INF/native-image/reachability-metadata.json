@@ -1148,11 +1148,28 @@
       ]
     },
     {
+      "type": "com.nechaev.config.ClientIpResolver",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": [
+            "com.nechaev.config.AppProperties"
+          ]
+        }
+      ]
+    },
+    {
       "type": "com.nechaev.config.HttpSessionHandshakeInterceptor",
       "methods": [
         {
           "name": "<init>",
           "parameterTypes": []
+        },
+        {
+          "name": "<init>",
+          "parameterTypes": [
+            "com.nechaev.config.ClientIpResolver"
+          ]
         }
       ]
     },
@@ -1216,6 +1233,15 @@
     {
       "type": "com.nechaev.config.PerIpRateLimitFilter",
       "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": [
+            "com.nechaev.service.RedisRateLimiter",
+            "com.nechaev.config.ClientIpResolver",
+            "tools.jackson.databind.ObjectMapper",
+            "io.micrometer.core.instrument.MeterRegistry"
+          ]
+        },
         {
           "name": "<init>",
           "parameterTypes": [
@@ -1456,6 +1482,19 @@
       ]
     },
     {
+      "type": "com.nechaev.config.StompRateLimitInterceptor",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": [
+            "com.nechaev.service.RedisRateLimiter",
+            "org.springframework.messaging.simp.SimpMessagingTemplate",
+            "io.micrometer.core.instrument.MeterRegistry"
+          ]
+        }
+      ]
+    },
+    {
       "type": "com.nechaev.config.VectorJdbcTemplate"
     },
     {
@@ -1480,6 +1519,14 @@
           "parameterTypes": [
             "com.nechaev.config.AppProperties",
             "com.nechaev.config.HttpSessionHandshakeInterceptor"
+          ]
+        },
+        {
+          "name": "<init>",
+          "parameterTypes": [
+            "com.nechaev.config.AppProperties",
+            "com.nechaev.config.HttpSessionHandshakeInterceptor",
+            "com.nechaev.config.StompRateLimitInterceptor"
           ]
         },
         {
@@ -1638,6 +1685,29 @@
       "type": "com.nechaev.model.IngestionState__Accessor_pa3b6x"
     },
     {
+      "type": "com.nechaev.model.SessionMessage",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": [
+            "com.nechaev.model.SessionMessage$Role",
+            "java.lang.String"
+          ]
+        },
+        {
+          "name": "content",
+          "parameterTypes": []
+        },
+        {
+          "name": "role",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": "com.nechaev.model.SessionMessage$Role"
+    },
+    {
       "type": "com.nechaev.model.package-info"
     },
     {
@@ -1684,8 +1754,43 @@
       ]
     },
     {
+      "type": "com.nechaev.service.CacheEvictionService",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": "com.nechaev.service.CacheEvictionService$$SpringCGLIB$$0",
+      "fields": [
+        {
+          "name": "CGLIB$CALLBACK_FILTER"
+        },
+        {
+          "name": "CGLIB$FACTORY_DATA"
+        }
+      ]
+    },
+    {
       "type": "com.nechaev.service.ChatService",
       "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": [
+            "org.springframework.ai.chat.client.ChatClient$Builder",
+            "org.springframework.ai.vectorstore.VectorStore",
+            "io.github.resilience4j.bulkhead.Bulkhead",
+            "io.github.resilience4j.ratelimiter.RateLimiter",
+            "com.nechaev.mapper.ChatMapper",
+            "com.nechaev.service.SessionHistoryStore",
+            "com.nechaev.service.AiUsageMetrics",
+            "com.nechaev.service.PromptCatalog",
+            "com.nechaev.service.PiiRedactor",
+            "com.nechaev.config.AppProperties"
+          ]
+        },
         {
           "name": "<init>",
           "parameterTypes": [
@@ -1727,29 +1832,6 @@
           "name": "CGLIB$FACTORY_DATA"
         }
       ]
-    },
-    {
-      "type": "com.nechaev.service.ChatService$MessageDto",
-      "methods": [
-        {
-          "name": "<init>",
-          "parameterTypes": [
-            "com.nechaev.service.ChatService$Role",
-            "java.lang.String"
-          ]
-        },
-        {
-          "name": "content",
-          "parameterTypes": []
-        },
-        {
-          "name": "role",
-          "parameterTypes": []
-        }
-      ]
-    },
-    {
-      "type": "com.nechaev.service.ChatService$Role"
     },
     {
       "type": "com.nechaev.service.DistributedLockService",
@@ -1806,9 +1888,54 @@
             "com.nechaev.repository.VectorStoreRepository",
             "com.nechaev.repository.IngestionStateRepository",
             "com.nechaev.service.DistributedLockService",
+            "com.nechaev.service.CacheEvictionService",
             "org.springframework.transaction.PlatformTransactionManager",
             "com.nechaev.config.AppProperties"
           ]
+        },
+        {
+          "name": "<init>",
+          "parameterTypes": [
+            "org.springframework.ai.vectorstore.VectorStore",
+            "com.nechaev.repository.VectorStoreRepository",
+            "com.nechaev.repository.IngestionStateRepository",
+            "com.nechaev.service.DistributedLockService",
+            "org.springframework.transaction.PlatformTransactionManager",
+            "com.nechaev.config.AppProperties"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "com.nechaev.service.SessionHistoryStore",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        },
+        {
+          "name": "load",
+          "parameterTypes": [
+            "java.lang.String"
+          ]
+        },
+        {
+          "name": "save",
+          "parameterTypes": [
+            "java.lang.String",
+            "java.util.List"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "com.nechaev.service.SessionHistoryStore$$SpringCGLIB$$0",
+      "fields": [
+        {
+          "name": "CGLIB$CALLBACK_FILTER"
+        },
+        {
+          "name": "CGLIB$FACTORY_DATA"
         }
       ]
     },
@@ -5789,7 +5916,13 @@
       "type": "java.util.ImmutableCollections$ListN"
     },
     {
-      "type": "java.util.List"
+      "type": "java.util.List",
+      "methods": [
+        {
+          "name": "isEmpty",
+          "parameterTypes": []
+        }
+      ]
     },
     {
       "type": "java.util.Locale"
@@ -17623,7 +17756,25 @@
       "type": "org.springframework.cache.annotation.AnnotationCacheOperationSource"
     },
     {
+      "type": "org.springframework.cache.annotation.CacheEvict"
+    },
+    {
+      "type": "org.springframework.cache.annotation.CacheEvict[]"
+    },
+    {
+      "type": "org.springframework.cache.annotation.CachePut"
+    },
+    {
+      "type": "org.springframework.cache.annotation.CachePut[]"
+    },
+    {
       "type": "org.springframework.cache.annotation.Cacheable"
+    },
+    {
+      "type": "org.springframework.cache.annotation.Cacheable[]"
+    },
+    {
+      "type": "org.springframework.cache.annotation.Caching"
     },
     {
       "type": "org.springframework.cache.annotation.CachingConfigurationSelector",
@@ -19089,6 +19240,17 @@
       "type": "org.springframework.messaging.simp.SimpMessagingTemplate"
     },
     {
+      "type": "org.springframework.messaging.simp.SimpMessagingTemplate$$SpringCGLIB$$0",
+      "fields": [
+        {
+          "name": "CGLIB$CALLBACK_FILTER"
+        },
+        {
+          "name": "CGLIB$FACTORY_DATA"
+        }
+      ]
+    },
+    {
       "type": "org.springframework.messaging.simp.annotation.SendToUser"
     },
     {
@@ -19240,6 +19402,9 @@
     },
     {
       "type": "org.springframework.messaging.support.AbstractSubscribableChannel"
+    },
+    {
+      "type": "org.springframework.messaging.support.ChannelInterceptor"
     },
     {
       "type": "org.springframework.messaging.support.ExecutorSubscribableChannel"
@@ -21601,7 +21766,28 @@
     {
       "type": {
         "proxy": [
+          "org.springframework.cache.annotation.CacheEvict"
+        ]
+      }
+    },
+    {
+      "type": {
+        "proxy": [
+          "org.springframework.cache.annotation.CachePut"
+        ]
+      }
+    },
+    {
+      "type": {
+        "proxy": [
           "org.springframework.cache.annotation.Cacheable"
+        ]
+      }
+    },
+    {
+      "type": {
+        "proxy": [
+          "org.springframework.cache.annotation.Caching"
         ]
       }
     },
@@ -22196,6 +22382,9 @@
       "glob": "com/nechaev/config/CacheConfig.class"
     },
     {
+      "glob": "com/nechaev/config/ClientIpResolver.class"
+    },
+    {
       "glob": "com/nechaev/config/HttpSessionHandshakeInterceptor.class"
     },
     {
@@ -22215,6 +22404,9 @@
     },
     {
       "glob": "com/nechaev/config/SpringSessionConfig.class"
+    },
+    {
+      "glob": "com/nechaev/config/StompRateLimitInterceptor.class"
     },
     {
       "glob": "com/nechaev/config/WebSocketConfig.class"
@@ -22256,7 +22448,7 @@
       "glob": "com/nechaev/service/AiUsageMetrics.class"
     },
     {
-      "glob": "com/nechaev/service/ChatService$MessageDto.class"
+      "glob": "com/nechaev/service/CacheEvictionService.class"
     },
     {
       "glob": "com/nechaev/service/ChatService$PipelineResult.class"
@@ -22287,6 +22479,9 @@
     },
     {
       "glob": "com/nechaev/service/ResumeIngestionService.class"
+    },
+    {
+      "glob": "com/nechaev/service/SessionHistoryStore.class"
     },
     {
       "glob": "commons-logging.properties"
@@ -24206,7 +24401,13 @@
       "glob": "org/springframework/jdbc/support/JdbcAccessor.class"
     },
     {
+      "glob": "org/springframework/messaging/simp/SimpMessagingTemplate.class"
+    },
+    {
       "glob": "org/springframework/messaging/simp/config/AbstractMessageBrokerConfiguration.class"
+    },
+    {
+      "glob": "org/springframework/messaging/support/ChannelInterceptor.class"
     },
     {
       "glob": "org/springframework/security/config/annotation/authentication/configuration/AuthenticationConfiguration$AuthenticationManagerDelegator.class"

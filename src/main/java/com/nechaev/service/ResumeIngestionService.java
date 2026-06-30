@@ -50,6 +50,7 @@ public class ResumeIngestionService implements CommandLineRunner {
     private final VectorStoreRepository vectorStoreRepository;
     private final IngestionStateRepository ingestionStateRepository;
     private final DistributedLockService lockService;
+    private final CacheEvictionService cacheEvictionService;
     private final TransactionTemplate transactionTemplate;
     private final String resumePath;
     private final DataSize maxSize;
@@ -58,12 +59,14 @@ public class ResumeIngestionService implements CommandLineRunner {
                                   VectorStoreRepository vectorStoreRepository,
                                   IngestionStateRepository ingestionStateRepository,
                                   DistributedLockService lockService,
+                                  CacheEvictionService cacheEvictionService,
                                   PlatformTransactionManager transactionManager,
                                   AppProperties appProperties) {
         this.vectorStore = vectorStore;
         this.vectorStoreRepository = vectorStoreRepository;
         this.ingestionStateRepository = ingestionStateRepository;
         this.lockService = lockService;
+        this.cacheEvictionService = cacheEvictionService;
         this.transactionTemplate = new TransactionTemplate(transactionManager);
         this.resumePath = appProperties.ingestion().resumePath();
         this.maxSize = appProperties.ingestion().maxSize();
@@ -88,6 +91,10 @@ public class ResumeIngestionService implements CommandLineRunner {
             return;
         }
         transactionTemplate.executeWithoutResult(status -> ingest(pdfBytes, currentHash));
+        // After the resume is re-ingested, drop all resume-derived caches (answers + chat
+        // history) so stale entries built from the previous resume are not served. Runs only
+        // after a successful commit — if the transaction throws, it propagates and we skip this.
+        cacheEvictionService.evictAll();
     }
 
     private void ingest(byte[] pdfBytes, String hash) {

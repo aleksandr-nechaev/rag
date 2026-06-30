@@ -39,6 +39,7 @@ class ResumeIngestionServiceTest {
     @Mock VectorStoreRepository vectorStoreRepository;
     @Mock IngestionStateRepository ingestionStateRepository;
     @Mock DistributedLockService lockService;
+    @Mock CacheEvictionService cacheEvictionService;
     @Mock PlatformTransactionManager transactionManager;
 
     ResumeIngestionService service;
@@ -57,6 +58,7 @@ class ResumeIngestionServiceTest {
                 vectorStoreRepository,
                 ingestionStateRepository,
                 lockService,
+                cacheEvictionService,
                 transactionManager,
                 appProperties);
 
@@ -76,6 +78,7 @@ class ResumeIngestionServiceTest {
         verify(ingestionStateRepository, never()).findById(any());
         verify(vectorStore, never()).add(any());
         verify(vectorStoreRepository, never()).deleteBySource(any());
+        verify(cacheEvictionService, never()).evictAll();
     }
 
     @Test
@@ -89,6 +92,7 @@ class ResumeIngestionServiceTest {
         verify(vectorStore, never()).add(any());
         verify(vectorStoreRepository, never()).deleteBySource(any());
         verify(ingestionStateRepository, never()).save(any());
+        verify(cacheEvictionService, never()).evictAll();
     }
 
     @Test
@@ -105,6 +109,7 @@ class ResumeIngestionServiceTest {
         verify(ingestionStateRepository).save(captor.capture());
         assertThat(captor.getValue().getSource()).isEqualTo("resume");
         assertThat(captor.getValue().getContentHash()).isEqualTo(realPdfHash);
+        verify(cacheEvictionService).evictAll();
     }
 
     @Test
@@ -118,6 +123,7 @@ class ResumeIngestionServiceTest {
         verify(vectorStoreRepository).deleteBySource("resume");
         verify(vectorStore).add(any());
         verify(ingestionStateRepository).save(any());
+        verify(cacheEvictionService).evictAll();
     }
 
     private void givenLockAcquired() {
