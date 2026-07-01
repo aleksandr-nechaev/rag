@@ -39,6 +39,18 @@ spring:
         jdbc:
           time_zone: UTC
   ai:
+    retry:
+      # Spring AI retries only transient errors (5xx / server). 429 is a 4xx and, with
+      # on-client-errors=false (default), is NOT retried — it fails over to the fallback
+      # model immediately via ChatService.callAiOrFallback. The defaults for transient
+      # errors are aggressive (max-attempts=10, backoff up to 3 min), which can hang a
+      # request for minutes on a 5xx blip before failover. Tighten to a single quick retry
+      # so 5xx also reaches the fallback model within ~0.5s.
+      max-attempts: 2
+      backoff:
+        initial-interval: 500ms
+        multiplier: 2
+        max-interval: 2s
     google:
       genai:
         api-key: ${GOOGLE_AI_API_KEY}
