@@ -78,7 +78,7 @@ class StompRateLimitInterceptorTest {
 
     @Test
     void nonSendFramesAreNotRateLimited() {
-        StompHeaderAccessor accessor = StompHeaderAccessor.create(StompCommand.SUBSCRIBE);
+        StompHeaderAccessor accessor = StompHeaderAccessor.create(StompCommand.DISCONNECT);
         accessor.setSessionId("s1");
         Message<byte[]> msg = MessageBuilder.createMessage(new byte[0], accessor.getMessageHeaders());
 
@@ -88,7 +88,52 @@ class StompRateLimitInterceptorTest {
         verify(rateLimiter, never()).tryAcquire(anyString());
     }
 
+    @Test
+    void subscribeToReplyQueuePassesThrough() {
+        Message<byte[]> msg = subscribeFrame("/user/queue/v1/answers");
+
+        Message<?> result = interceptor.preSend(msg, channel);
+
+        assertThat(result).isSameAs(msg);
+        verify(rateLimiter, never()).tryAcquire(anyString());
+        assertThat(subscribeDeniedCount()).isEqualTo(0);
+    }
+
+    @Test
+    void subscribeToForeignUserQueueIsDropped() {
+        // Direct broker destination of another session's user queue — must never be granted.
+        Message<byte[]> msg = subscribeFrame("/queue/v1/answers-userVICTIMSESSION");
+
+        Message<?> result = interceptor.preSend(msg, channel);
+
+        assertThat(result).isNull();
+        assertThat(subscribeDeniedCount()).isEqualTo(1);
+    }
+
+    @Test
+    void subscribeWithoutDestinationIsDropped() {
+        Message<byte[]> msg = subscribeFrame(null);
+
+        Message<?> result = interceptor.preSend(msg, channel);
+
+        assertThat(result).isNull();
+        assertThat(subscribeDeniedCount()).isEqualTo(1);
+    }
+
+    private static Message<byte[]> subscribeFrame(String destination) {
+        StompHeaderAccessor accessor = StompHeaderAccessor.create(StompCommand.SUBSCRIBE);
+        accessor.setSessionId("s1");
+        if (destination != null) {
+            accessor.setDestination(destination);
+        }
+        return MessageBuilder.createMessage(new byte[0], accessor.getMessageHeaders());
+    }
+
     private double deniedCount() {
         return meterRegistry.counter("ws.ratelimit.denied").count();
+    }
+
+    private double subscribeDeniedCount() {
+        return meterRegistry.counter("ws.subscribe.denied").count();
     }
 }

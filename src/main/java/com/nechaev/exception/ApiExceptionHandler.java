@@ -1,5 +1,6 @@
 package com.nechaev.exception;
 
+import com.nechaev.config.ApiMessages;
 import com.nechaev.dto.ErrorResponse;
 import io.github.resilience4j.bulkhead.BulkheadFullException;
 import io.github.resilience4j.ratelimiter.RequestNotPermitted;
@@ -21,13 +22,13 @@ public class ApiExceptionHandler {
     @ExceptionHandler(BulkheadFullException.class)
     @ResponseStatus(HttpStatus.TOO_MANY_REQUESTS)
     public ErrorResponse handleBulkheadFull() {
-        return new ErrorResponse("Server is busy, please try again later.");
+        return new ErrorResponse(ApiMessages.SERVER_BUSY_MESSAGE);
     }
 
     @ExceptionHandler(RequestNotPermitted.class)
     @ResponseStatus(HttpStatus.TOO_MANY_REQUESTS)
     public ErrorResponse handleRateLimitExceeded() {
-        return new ErrorResponse("Too many requests, please try again in a few seconds.");
+        return new ErrorResponse(ApiMessages.RATE_LIMIT_MESSAGE);
     }
 
     // Field details stay in logs only — not echoed to clients to avoid leaking internal field names
@@ -39,6 +40,6 @@ public class ApiExceptionHandler {
                 .map(fe -> fe.getField() + ": " + fe.getDefaultMessage())
                 .collect(Collectors.joining("; "));
         log.info("Request validation failed: {}", details.isEmpty() ? "no field errors" : details);
-        return new ErrorResponse("Invalid request.");
+        return new ErrorResponse(ApiMessages.INVALID_REQUEST_MESSAGE);
     }
 }

@@ -1,5 +1,6 @@
 package com.nechaev.config;
 
+import org.springframework.boot.web.servlet.FilterRegistrationBean;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.config.Customizer;
@@ -46,5 +47,18 @@ public class SecurityConfig {
                 // shouldNotFilter, so basic-auth still works normally there.
                 .addFilterBefore(perIpRateLimitFilter, UsernamePasswordAuthenticationFilter.class)
                 .build();
+    }
+
+    // Boot auto-registers every Filter bean with the servlet container in addition to our
+    // explicit addFilterBefore above. Only the OncePerRequestFilter guard keeps that from
+    // double-counting each request against the rate limit — disable the container
+    // registration so the filter runs exactly where it is wired: inside the security chain.
+    @Bean
+    public FilterRegistrationBean<PerIpRateLimitFilter> perIpRateLimitFilterRegistration(
+            PerIpRateLimitFilter perIpRateLimitFilter) {
+        FilterRegistrationBean<PerIpRateLimitFilter> registration =
+                new FilterRegistrationBean<>(perIpRateLimitFilter);
+        registration.setEnabled(false);
+        return registration;
     }
 }

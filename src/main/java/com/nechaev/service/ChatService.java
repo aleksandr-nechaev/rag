@@ -90,7 +90,9 @@ public class ChatService {
         this.maxHistory = appProperties.rag().maxHistory();
     }
 
-    @Cacheable(value = "answers", key = "#request.question().strip().toLowerCase()")
+    // Key is SHA-256 of the normalized question (see CacheConfig.sha256KeyGenerator) so raw
+    // user text never lands in Redis key names.
+    @Cacheable(value = "answers", keyGenerator = "sha256KeyGenerator")
     public AnswerResponse answer(QuestionRequest request) {
         Question question = chatMapper.toQuestion(request);
         return executeRagPipeline(question, List.of()).response();

@@ -22,10 +22,6 @@ import java.io.IOException;
 @Component
 public class PerIpRateLimitFilter extends OncePerRequestFilter {
 
-    // Aligned with ApiExceptionHandler.handleRateLimitExceeded — clients see the same
-    // message for any "rate limit hit" outcome (per-IP filter or downstream Resilience4j).
-    private static final String RATE_LIMIT_MESSAGE = "Too many requests, please try again in a few seconds.";
-
     private final RedisRateLimiter rateLimiter;
     private final ClientIpResolver clientIpResolver;
     private final Counter deniedCounter;
@@ -40,7 +36,7 @@ public class PerIpRateLimitFilter extends OncePerRequestFilter {
         this.clientIpResolver = clientIpResolver;
         this.deniedCounter = Counter.builder("api.ratelimit.denied").register(meterRegistry);
         try {
-            this.rateLimitBodyBytes = objectMapper.writeValueAsBytes(new ErrorResponse(RATE_LIMIT_MESSAGE));
+            this.rateLimitBodyBytes = objectMapper.writeValueAsBytes(new ErrorResponse(ApiMessages.RATE_LIMIT_MESSAGE));
         } catch (JacksonException e) {
             throw new IllegalStateException("Failed to pre-serialize rate-limit body", e);
         }

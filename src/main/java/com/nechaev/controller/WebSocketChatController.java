@@ -1,5 +1,6 @@
 package com.nechaev.controller;
 
+import com.nechaev.config.ApiMessages;
 import com.nechaev.config.HttpSessionHandshakeInterceptor;
 import com.nechaev.dto.AnswerResponse;
 import com.nechaev.dto.QuestionRequest;
@@ -25,7 +26,7 @@ import java.util.stream.Collectors;
 public class WebSocketChatController {
 
     private static final Logger log = LoggerFactory.getLogger(WebSocketChatController.class);
-    private static final String REPLY_DESTINATION = "/queue/v1/answers";
+    private static final String REPLY_DESTINATION = ApiMessages.WS_REPLY_DESTINATION;
 
     private final ChatService chatService;
 
@@ -51,7 +52,7 @@ public class WebSocketChatController {
     @MessageExceptionHandler({BulkheadFullException.class, RequestNotPermitted.class})
     @SendToUser(value = REPLY_DESTINATION, broadcast = false)
     public AnswerResponse handleBusy() {
-        return new AnswerResponse("Server is busy, please try again later.");
+        return new AnswerResponse(ApiMessages.SERVER_BUSY_MESSAGE);
     }
 
     // Field details kept in logs only — never echo raw payload back via getMessage(),
@@ -63,7 +64,7 @@ public class WebSocketChatController {
                 .map(fe -> fe.getField() + ": " + fe.getDefaultMessage())
                 .collect(Collectors.joining("; "));
         log.info("WebSocket request validation failed: {}", details.isEmpty() ? "no field errors" : details);
-        return new AnswerResponse("Invalid request.");
+        return new AnswerResponse(ApiMessages.INVALID_REQUEST_MESSAGE);
     }
 
     @MessageExceptionHandler(Exception.class)

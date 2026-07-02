@@ -25,21 +25,27 @@ import java.util.Map;
 // messages sent over a native WebSocket connection — this closes that gap, keyed on the
 // client IP captured at handshake (HttpSessionHandshakeInterceptor.CLIENT_IP_ATTR).
 //
-// On denial the offending frame is dropped (not forwarded to the controller) and a friendly
+// Also enforces the SUBSCRIBE allow-list: the simple broker would otherwise let any client
+// subscribe to arbitrary /queue/** or /topic/** destinations, including another session's
+// user queue if its id leaked. Kept in the same inbound interceptor to avoid a second
+// @Lazy-cycled bean on the client inbound channel.
+//
+// On denial the offending frame is dropped (not forwarded further); for SEND a friendly
 // message is pushed back to the originating session, mirroring the bulkhead/RequestNotPermitted
 // path — the connection stays open rather than being torn down.
 @Component
 public class StompRateLimitInterceptor implements ChannelInterceptor {
 
     private static final Logger log = LoggerFactory.getLogger(StompRateLimitInterceptor.class);
-    // Same destination the controller replies on (@SendToUser value); the client subscribes
-    // to /user/queue/v1/answers.
-    private static final String REPLY_DESTINATION = "/queue/v1/answers";
-    private static final String RATE_LIMIT_MESSAGE = "Too many requests, please try again in a few seconds.";
+    // The only destination clients may subscribe to: the user-queue the controller replies on.
+    private static final String ALLOWED_SUBSCRIBE_DESTINATION = "/user" + ApiMessages.WS_REPLY_DESTINATION;
+    // Cap for echoing an attacker-controlled destination into the log.
+    private static final int LOGGED_DESTINATION_MAX_LENGTH = 100;
 
     private final RedisRateLimiter rateLimiter;
     private final SimpMessagingTemplate messagingTemplate;
     private final Counter deniedCounter;
+    private final Counter subscribeDeniedCounter;
 
     // @Lazy on the messaging template: it is created by the WebSocket broker configuration,
     // which itself depends on this interceptor being registered — lazy resolution breaks the cycle.
@@ -49,13 +55,18 @@ public class StompRateLimitInterceptor implements ChannelInterceptor {
         this.rateLimiter = rateLimiter;
         this.messagingTemplate = messagingTemplate;
         this.deniedCounter = Counter.builder("ws.ratelimit.denied").register(meterRegistry);
+        this.subscribeDeniedCounter = Counter.builder("ws.subscribe.denied").register(meterRegistry);
     }
 
     @Override
     public @Nullable Message<?> preSend(Message<?> message, MessageChannel channel) {
         StompHeaderAccessor accessor = StompHeaderAccessor.wrap(message);
-        // Only rate-limit client SEND frames; CONNECT/SUBSCRIBE/DISCONNECT/heartbeats pass through.
-        if (!StompCommand.SEND.equals(accessor.getCommand())) {
+        StompCommand command = accessor.getCommand();
+        if (StompCommand.SUBSCRIBE.equals(command)) {
+            return checkSubscribe(message, accessor);
+        }
+        // Only rate-limit client SEND frames; CONNECT/DISCONNECT/heartbeats pass through.
+        if (!StompCommand.SEND.equals(command)) {
             return message;
         }
         String clientIp = clientIp(accessor);
@@ -65,6 +76,24 @@ public class StompRateLimitInterceptor implements ChannelInterceptor {
         deniedCounter.increment();
         sendRateLimitReply(accessor.getSessionId());
         return null; // drop the over-limit frame; keep the connection open
+    }
+
+    private @Nullable Message<?> checkSubscribe(Message<?> message, StompHeaderAccessor accessor) {
+        String destination = accessor.getDestination();
+        if (ALLOWED_SUBSCRIBE_DESTINATION.equals(destination)) {
+            return message;
+        }
+        subscribeDeniedCounter.increment();
+        log.warn("Denied SUBSCRIBE to '{}' from session {} — only {} is allowed.",
+                abbreviate(destination), accessor.getSessionId(), ALLOWED_SUBSCRIBE_DESTINATION);
+        return null; // drop the frame; the client simply gets no subscription
+    }
+
+    private static String abbreviate(@Nullable String destination) {
+        if (destination == null) return "<none>";
+        return destination.length() <= LOGGED_DESTINATION_MAX_LENGTH
+                ? destination
+                : destination.substring(0, LOGGED_DESTINATION_MAX_LENGTH) + "…";
     }
 
     private static @Nullable String clientIp(StompHeaderAccessor accessor) {
@@ -82,7 +111,8 @@ public class StompRateLimitInterceptor implements ChannelInterceptor {
         headers.setLeaveMutable(true);
         try {
             messagingTemplate.convertAndSendToUser(
-                    sessionId, REPLY_DESTINATION, new AnswerResponse(RATE_LIMIT_MESSAGE), headers.getMessageHeaders());
+                    sessionId, ApiMessages.WS_REPLY_DESTINATION,
+                    new AnswerResponse(ApiMessages.RATE_LIMIT_MESSAGE), headers.getMessageHeaders());
         } catch (RuntimeException e) {
             // Never let a feedback-delivery hiccup propagate back into the inbound channel.
             log.warn("Failed to deliver WS rate-limit notice to session {}: {}", sessionId, e.getMessage());

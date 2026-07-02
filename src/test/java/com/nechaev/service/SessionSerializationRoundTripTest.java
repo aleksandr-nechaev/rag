@@ -1,5 +1,6 @@
 package com.nechaev.service;
 
+import com.nechaev.config.CacheConfig;
 import com.nechaev.model.SessionMessage;
 import org.junit.jupiter.api.Test;
 import org.springframework.data.redis.serializer.GenericJacksonJsonRedisSerializer;
@@ -19,8 +20,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
  */
 class SessionSerializationRoundTripTest {
 
-    private final GenericJacksonJsonRedisSerializer serializer =
-            GenericJacksonJsonRedisSerializer.builder().enableUnsafeDefaultTyping().build();
+    private final GenericJacksonJsonRedisSerializer serializer = CacheConfig.cacheValueSerializer();
 
     private static List<SessionMessage> twoTurns() {
         return List.of(
@@ -44,6 +44,17 @@ class SessionSerializationRoundTripTest {
     void immutableListFromStreamToListCannotBeRead() {
         // Documents the trap that broke history: ChatService.saveHistory must NOT use toList().
         byte[] bytes = serializer.serialize(twoTurns());
+
+        assertThatThrownBy(() -> serializer.deserialize(bytes))
+                .isInstanceOf(SerializationException.class);
+    }
+
+    @Test
+    void typesOutsideAllowListAreRejectedOnRead() {
+        // Guards the polymorphic-typing allow-list in CacheConfig: a @class outside
+        // com.nechaev.* / ArrayList must never be instantiated on read, even if the payload
+        // was written by us — that is the gadget-chain door for anyone with Redis write access.
+        byte[] bytes = serializer.serialize(new java.util.HashMap<String, String>());
 
         assertThatThrownBy(() -> serializer.deserialize(bytes))
                 .isInstanceOf(SerializationException.class);
