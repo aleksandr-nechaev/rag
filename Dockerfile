@@ -8,6 +8,10 @@ COPY settings.gradle.kts .
 COPY build.gradle.kts .
 RUN ./gradlew dependencies --no-daemon -q
 COPY src src
+# Stamp the build version (git SHA passed by CI) into the UI before resources are baked
+# into the native image. ARG sits here so changing it does not bust the layers above.
+ARG APP_VERSION=dev
+RUN sed -i "s/__APP_VERSION__/${APP_VERSION}/" src/main/resources/static/index.html
 RUN ./gradlew nativeCompile --no-daemon -x test
 
 FROM debian:stable-slim

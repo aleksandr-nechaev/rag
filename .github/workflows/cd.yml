@@ -19,15 +19,9 @@ concurrency:
   cancel-in-progress: false
 
 env:
-  AWS_REGION: us-east-1
   IMAGE_REPO: agnechaev/rag-resume
-  ECS_CLUSTER: rag-resume-cluster
-  ECS_SERVICE: rag-resume-service-8hnwk1jt
-  ECS_TASK_FAMILY: rag-resume
-  CONTAINER_NAME: rag-resume-snapshot
 
 permissions:
-  id-token: write   # required for OIDC authentication to AWS
   contents: read
 
 jobs:
@@ -49,8 +43,6 @@ jobs:
   build:
     needs: test
     runs-on: ubuntu-latest
-    outputs:
-      tag: ${{ steps.vars.outputs.tag }}
     steps:
       - uses: actions/checkout@v4
 
@@ -76,39 +68,36 @@ jobs:
           push: true
           cache-from: type=gha
           cache-to: type=gha,mode=max
+          build-args: |
+            APP_VERSION=${{ steps.vars.outputs.tag }}
           tags: |
             ${{ env.IMAGE_REPO }}:${{ steps.vars.outputs.tag }}
             ${{ env.IMAGE_REPO }}:latest
 
   deploy:
     needs: build
-    if: false          # ECS deploy disabled; remove this line to re-enable
     runs-on: ubuntu-latest
     steps:
-      - name: Configure AWS credentials (OIDC)
-        uses: aws-actions/configure-aws-credentials@v4
+      - name: Deploy on Hetzner VPS
+        uses: appleboy/ssh-action@v1
         with:
-          role-to-assume: ${{ secrets.AWS_DEPLOY_ROLE_ARN }}
-          aws-region: ${{ env.AWS_REGION }}
-
-      - name: Download current task definition
-        run: |
-          aws ecs describe-task-definition \
-            --task-definition ${{ env.ECS_TASK_FAMILY }} \
-            --query taskDefinition > task-def.json
-
-      - name: Render new image into task definition
-        id: render
-        uses: aws-actions/amazon-ecs-render-task-definition@v1
-        with:
-          task-definition: task-def.json
-          container-name: ${{ env.CONTAINER_NAME }}
-          image: ${{ env.IMAGE_REPO }}:${{ needs.build.outputs.tag }}
-
-      - name: Deploy to ECS
-        uses: aws-actions/amazon-ecs-deploy-task-definition@v2
-        with:
-          task-definition: ${{ steps.render.outputs.task-definition }}
-          service: ${{ env.ECS_SERVICE }}
-          cluster: ${{ env.ECS_CLUSTER }}
-          wait-for-service-stability: true
+          host: ${{ secrets.HETZNER_ADDRESS }}
+          username: ${{ secrets.HETZNER_USER }}
+          password: ${{ secrets.HETZNER_PASSWORD }}
+          script: |
+            cd app
+            docker compose pull
+            docker compose up -d
+            docker image prune -f
+            # Wait until the app serves the UI so a broken image fails the job.
+            # /actuator/** requires admin basic auth, so probe the public root instead.
+            for i in $(seq 1 30); do
+              if curl -sf http://localhost:8080/ > /dev/null; then
+                echo "Application is up"
+                exit 0
+              fi
+              sleep 5
+            done
+            echo "Health check failed after 150s" >&2
+            docker compose logs --tail=100
+            exit 1
