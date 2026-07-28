@@ -15,7 +15,10 @@ public record AppProperties(Cache cache, Protection protection, List<String> all
 
     public record Ai(int limitForPeriod, Duration limitRefreshPeriod, Duration timeoutDuration) {}
 
-    // max-concurrent-calls must equal spring.datasource.hikari.maximum-pool-size
+    // Bulkhead around the retrieval phase only (query embedding + pgvector search) — the
+    // part of the pipeline that holds a JDBC connection. Hence max-concurrent-calls must
+    // equal spring.datasource.hikari.maximum-pool-size. The AI call that follows holds no
+    // connection and is bounded by Ai.limitForPeriod instead — see ChatService.
     public record RagPipeline(int maxConcurrentCalls, Duration maxWaitDuration) {}
 
     // Distributed per-client-IP rate limit, backed by Redis (atomic INCR+EXPIRE Lua script).

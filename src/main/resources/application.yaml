@@ -27,6 +27,7 @@ spring:
     password: ${DB_PASSWORD:postgres}
     hikari:
       maximum-pool-size: 5      # must equal app.protection.rag-pipeline.max-concurrent-calls
+                                # (that bulkhead guards the connection-holding retrieval phase)
       minimum-idle: 1
       connection-timeout: 2000
       idle-timeout: 300000
@@ -131,6 +132,9 @@ app:
       limit-refresh-period: 1m
       timeout-duration: 0s
     rag-pipeline:
+      # Caps concurrent retrieval (query embedding + pgvector search) — the only phase that
+      # holds a JDBC connection, hence the tie to the pool size. The chat-completion call
+      # that follows runs outside this bulkhead and is capped by app.protection.ai instead.
       max-concurrent-calls: 5   # must equal spring.datasource.hikari.maximum-pool-size
       max-wait-duration: 0ms
     per-ip-rate-limit:

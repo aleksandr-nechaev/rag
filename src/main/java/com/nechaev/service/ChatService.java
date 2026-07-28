@@ -173,13 +173,24 @@ public class ChatService {
     }
 
     private PipelineResult executeRagPipeline(Question question, List<Message> history) {
+        List<Document> relevant = retrieveRelevantChunks(question);
+        return callAiOrFallback(question, relevant, history);
+    }
+
+    // The bulkhead guards retrieval only: PgVectorStore embeds the query and then takes a
+    // connection from the Hikari pool for the search itself — hence the requirement that
+    // max-concurrent-calls == spring.datasource.hikari.maximum-pool-size.
+    // The chat-completion ladder that follows holds no connection (up to ~2 min at a 30s
+    // timeout × 2 attempts × 2 models) and is governed by aiRateLimiter instead. Holding the
+    // permit across it would cap throughput at ~5 in-flight requests rather than the 25/min
+    // app.protection.ai.limit-for-period is sized for.
+    private List<Document> retrieveRelevantChunks(Question question) {
         if (!ragPipelineBulkhead.tryAcquirePermission()) {
             throw BulkheadFullException.createBulkheadFullException(ragPipelineBulkhead);
         }
         try {
-            List<Document> relevant = vectorStore.similaritySearch(
+            return vectorStore.similaritySearch(
                     SearchRequest.builder().query(question.text()).topK(topK).build());
-            return callAiOrFallback(question, relevant, history);
         } finally {
             ragPipelineBulkhead.onComplete();
         }

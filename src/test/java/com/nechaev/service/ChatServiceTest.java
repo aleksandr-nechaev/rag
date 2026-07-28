@@ -17,6 +17,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Answers;
 import org.mockito.ArgumentMatchers;
+import org.mockito.InOrder;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.mockito.junit.jupiter.MockitoSettings;
@@ -41,6 +42,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -202,6 +204,24 @@ class ChatServiceTest {
         assertThatThrownBy(() -> chatService.answer(REQUEST))
                 .isInstanceOf(RuntimeException.class);
         verify(ragPipelineBulkhead).onComplete();
+    }
+
+    @Test
+    void answerBulkheadPermitReleasedBeforeAiCall() {
+        when(ragPipelineBulkhead.tryAcquirePermission()).thenReturn(true);
+        when(vectorStore.similaritySearch(any(org.springframework.ai.vectorstore.SearchRequest.class)))
+                .thenReturn(List.of(new Document("context")));
+        when(aiRateLimiter.acquirePermission()).thenReturn(false); // raw fallback: no AI call needed
+        when(chatMapper.toResponse(any())).thenAnswer(inv ->
+                new AnswerResponse(inv.<Answer>getArgument(0).text()));
+
+        chatService.answer(REQUEST);
+
+        // The bulkhead slot is released BEFORE the AI phase starts: otherwise the long
+        // chat-completion ladder would hold a permit that is sized against the DB pool.
+        InOrder inOrder = inOrder(ragPipelineBulkhead, aiRateLimiter);
+        inOrder.verify(ragPipelineBulkhead).onComplete();
+        inOrder.verify(aiRateLimiter).acquirePermission();
     }
 
     @Test
