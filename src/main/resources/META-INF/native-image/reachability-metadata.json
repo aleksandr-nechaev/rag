@@ -1096,6 +1096,10 @@
             "com.nechaev.config.AppProperties",
             "tools.jackson.databind.ObjectMapper"
           ]
+        },
+        {
+          "name": "sha256KeyGenerator",
+          "parameterTypes": []
         }
       ]
     },
@@ -1395,6 +1399,12 @@
     {
       "type": "com.nechaev.config.SecurityConfig",
       "methods": [
+        {
+          "name": "perIpRateLimitFilterRegistration",
+          "parameterTypes": [
+            "com.nechaev.config.PerIpRateLimitFilter"
+          ]
+        },
         {
           "name": "securityFilterChain",
           "parameterTypes": [
@@ -1758,6 +1768,10 @@
       "methods": [
         {
           "name": "<init>",
+          "parameterTypes": []
+        },
+        {
+          "name": "evictAll",
           "parameterTypes": []
         }
       ]
@@ -12429,6 +12443,39 @@
         {
           "name": "<init>",
           "parameterTypes": []
+        },
+        {
+          "name": "getBackoff",
+          "parameterTypes": []
+        },
+        {
+          "name": "setMaxAttempts",
+          "parameterTypes": [
+            "int"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "org.springframework.ai.retry.autoconfigure.SpringAiRetryProperties$Backoff",
+      "methods": [
+        {
+          "name": "setInitialInterval",
+          "parameterTypes": [
+            "java.time.Duration"
+          ]
+        },
+        {
+          "name": "setMaxInterval",
+          "parameterTypes": [
+            "java.time.Duration"
+          ]
+        },
+        {
+          "name": "setMultiplier",
+          "parameterTypes": [
+            "int"
+          ]
         }
       ]
     },
@@ -17836,6 +17883,9 @@
       "type": "org.springframework.cache.interceptor.CacheOperationSource"
     },
     {
+      "type": "org.springframework.cache.interceptor.KeyGenerator"
+    },
+    {
       "type": "org.springframework.cache.jcache.config.ProxyJCacheConfiguration"
     },
     {
@@ -21899,6 +21949,16 @@
         "proxy": [
           "org.springframework.web.bind.annotation.RequestMapping"
         ]
+      }
+    },
+    {
+      "type": {
+        "lambda": {
+          "declaringClass": "com.nechaev.config.CacheConfig",
+          "interfaces": [
+            "org.springframework.cache.interceptor.KeyGenerator"
+          ]
+        }
       }
     },
     {
