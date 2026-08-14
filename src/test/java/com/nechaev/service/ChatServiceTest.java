@@ -87,7 +87,7 @@ class ChatServiceTest {
 
     private static ChatResponse stubChatResponse(String text) {
         ChatResponseMetadata metadata = ChatResponseMetadata.builder()
-                .model("gemini-2.5-flash-lite")
+                .model("gemini-3.5-flash-lite")
                 .usage(new DefaultUsage(10, 20, 30))
                 .build();
         Generation generation = new Generation(new AssistantMessage(text));
