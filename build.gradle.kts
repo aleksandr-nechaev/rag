@@ -56,8 +56,8 @@ dependencies {
     runtimeOnly("org.postgresql:postgresql")
     // GraalVM substitution API (@TargetClass/@Substitute) for NativeRuntimeHints siblings.
     // compileOnly: present only at compile time, never on the runtime/JVM classpath. Version
-    // tracks the GraalVM JDK used for native compilation (25.0.2).
-    compileOnly("org.graalvm.nativeimage:svm:25.0.2")
+    // tracks the GraalVM JDK used for native compilation (25.0.5.1, see Dockerfile).
+    compileOnly("org.graalvm.nativeimage:svm:25.0.5.1")
 
     testImplementation("org.springframework.boot:spring-boot-starter-webmvc-test")
     testImplementation("org.springframework.boot:spring-boot-testcontainers")

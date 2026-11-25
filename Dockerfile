@@ -1,4 +1,7 @@
-FROM ghcr.io/graalvm/native-image-community:25-ol9 AS builder
+# Pinned exact tag: the floating 25-ol9 tag stopped at 25.0.2 (Jan 2026); Community 25 now ships as
+# Innovation releases (25iN). 25.0.5.1 fixes Java4Shell (CVE-2026-114938). Keep docker-compose.yml's
+# `agent` image and the svm compileOnly version in build.gradle.kts in sync with this tag.
+FROM ghcr.io/graalvm/native-image-community:25i6-25.0.5.1-ol9 AS builder
 WORKDIR /app
 # Keep Gradle's own JVM small so most of the builder memory stays free for native-image.
 ENV GRADLE_OPTS="-Dorg.gradle.jvmargs=-Xmx1g"

@@ -31,7 +31,7 @@ services:
   # Watch for "Ingested N sections from resume." then stop with Ctrl+C — the agent merges the
   # captured config into src/main/resources/META-INF/native-image on shutdown (and every 30s).
   agent:
-    image: ghcr.io/graalvm/native-image-community:25-ol9
+    image: ghcr.io/graalvm/native-image-community:25i6-25.0.5.1-ol9
     profiles: ["agent"]
     working_dir: /workspace
     volumes:
